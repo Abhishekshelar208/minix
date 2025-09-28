@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "937703255335",
+    "project_id": "minix-677e3",
+    "storage_bucket": "minix-677e3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:937703255335:android:cdbb8541e22c16ccc88d02",
+        "android_client_info": {
+          "package_name": "com.example.minix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA58woroOr0ZZUgGIJEnQ5Yy5s8kWe3iC0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

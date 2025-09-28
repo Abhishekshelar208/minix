@@ -1,0 +1,60 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    
+    "ProjectSpaces": {
+      ".indexOn": ["ownerId"],
+      "$projectSpaceId": {
+        ".read": "auth != null && (auth.uid == data.child('ownerId').val() || data.child('teamMembers').hasChild(auth.uid))",
+        ".write": "auth != null && (auth.uid == data.child('ownerId').val() || !data.exists())"
+      }
+    },
+    
+    "Solutions": {
+      ".indexOn": ["ownerId", "projectSpaceId"],
+      "$solutionId": {
+        ".read": "auth != null && auth.uid == data.child('ownerId').val()",
+        ".write": "auth != null && (auth.uid == data.child('ownerId').val() || !data.exists())"
+      }
+    },
+    
+    "Roadmaps": {
+      ".indexOn": ["ownerId", "projectSpaceId"],
+      "$roadmapId": {
+        ".read": "auth != null && auth.uid == data.child('ownerId').val()",
+        ".write": "auth != null && (auth.uid == data.child('ownerId').val() || !data.exists())"
+      }
+    },
+    
+    "RoadmapTasks": {
+      "$roadmapId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    "Projects": {
+      ".indexOn": ["ownerId", "projectSpaceId"],
+      "$projectId": {
+        ".read": "auth != null && auth.uid == data.child('ownerId').val()",
+        ".write": "auth != null && (auth.uid == data.child('ownerId').val() || !data.exists())"
+      }
+    },
+    
+    "Bookmarks": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    
+    "CodeProjects": {
+      ".indexOn": ["projectSpaceId"],
+      "$projectSpaceId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}
