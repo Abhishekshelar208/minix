@@ -6,13 +6,14 @@ import 'package:minix/models/problem.dart';
 import 'package:minix/models/solution.dart';
 import 'package:minix/services/code_generation_service.dart';
 import 'package:minix/services/project_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class CodeGenerationPage extends StatefulWidget {
+class PromptGenerationPage extends StatefulWidget {
   final String projectSpaceId;
   final String projectName;
   final Problem problem;
 
-  const CodeGenerationPage({
+  const PromptGenerationPage({
     super.key,
     required this.projectSpaceId,
     required this.projectName,
@@ -20,18 +21,63 @@ class CodeGenerationPage extends StatefulWidget {
   });
 
   @override
-  State<CodeGenerationPage> createState() => _CodeGenerationPageState();
+  State<PromptGenerationPage> createState() => _PromptGenerationPageState();
 }
 
-class _CodeGenerationPageState extends State<CodeGenerationPage> {
+class _PromptGenerationPageState extends State<PromptGenerationPage> {
   final CodeGenerationService _codeService = CodeGenerationService();
   final ProjectService _projectService = ProjectService();
   
   bool _isLoading = true;
-  bool _isGeneratingCode = false;
-  CodeGenerationProject? _codeProject;
+  bool _isGeneratingPrompts = false;
+  bool _showAITools = false;
+  CodeGenerationProject? _promptProject;
   Map<String, dynamic>? _projectData;
   ProjectSolution? _solution;
+  
+  // AI Tools data
+  final List<AITool> _aiTools = [
+    AITool(
+      name: 'Cursor',
+      description: 'AI-powered code editor with context awareness',
+      downloadUrl: 'https://cursor.sh/',
+      logo: '🖱️',
+      howToUse: 'Open Cursor → Create new project → Paste prompt in chat → Follow AI suggestions',
+      features: ['Context-aware coding', 'Natural language commands', 'Code completion'],
+    ),
+    AITool(
+      name: 'GitHub Copilot',
+      description: 'AI pair programmer that suggests code in real-time',
+      downloadUrl: 'https://github.com/features/copilot',
+      logo: '🐙',
+      howToUse: 'Install in VS Code/JetBrains → Type comment with your prompt → Accept suggestions',
+      features: ['Inline code suggestions', 'Chat interface', 'Multi-language support'],
+    ),
+    AITool(
+      name: 'Claude (Anthropic)',
+      description: 'Advanced AI assistant for coding and project development',
+      downloadUrl: 'https://claude.ai/',
+      logo: '🤖',
+      howToUse: 'Visit Claude.ai → Start new conversation → Paste project prompt → Follow instructions',
+      features: ['Long context window', 'Code generation', 'Project planning'],
+    ),
+    AITool(
+      name: 'V0 (Vercel)',
+      description: 'AI-powered React component and UI generator',
+      downloadUrl: 'https://v0.dev/',
+      logo: '⚡',
+      howToUse: 'Visit v0.dev → Describe your UI → Copy generated React code',
+      features: ['UI component generation', 'React/Next.js focus', 'Instant previews'],
+    ),
+    AITool(
+      name: 'ChatGPT',
+      description: 'General-purpose AI for coding assistance and learning',
+      downloadUrl: 'https://chat.openai.com/',
+      logo: '💬',
+      howToUse: 'Visit ChatGPT → Start new chat → Paste coding prompt → Get step-by-step guidance',
+      features: ['Code explanation', 'Debugging help', 'Learning support'],
+    ),
+  ];
   
   @override
   void initState() {
@@ -49,19 +95,19 @@ class _CodeGenerationPageState extends State<CodeGenerationPage> {
         throw Exception('Missing project data or solution');
       }
 
-      // Check if code project already exists
-      final existingCodeProject = await _codeService.getCodeProject(widget.projectSpaceId);
+      // Check if prompt project already exists
+      final existingPromptProject = await _codeService.getCodeProject(widget.projectSpaceId);
       
       setState(() {
         _projectData = projectData;
         _solution = solution;
-        _codeProject = existingCodeProject;
+        _promptProject = existingPromptProject;
         _isLoading = false;
       });
 
     } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Failed to load project data: ${e.toString()}'),
@@ -71,61 +117,85 @@ class _CodeGenerationPageState extends State<CodeGenerationPage> {
       }
     }
   }
+  
+  void _toggleAIToolsView() {
+    setState(() {
+      _showAITools = !_showAITools;
+    });
+  }
+  
+  Future<void> _launchUrl(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not launch $url'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
-  Future<void> _initializeCodeGeneration() async {
+  Future<void> _initializePromptGeneration() async {
     setState(() => _isLoading = true);
 
     try {
-      final codeProject = await _codeService.generateCodeProject(
+      final promptProject = await _codeService.generateCodeProject(
         projectSpaceId: widget.projectSpaceId,
         projectName: widget.projectName,
         problem: widget.problem,
         solution: _solution!,
-        targetPlatform: _projectData!['targetPlatform'] ?? 'App',
-        difficulty: _projectData!['difficulty'] ?? 'Intermediate',
-        teamSkills: List<String>.from(_projectData!['skills'] ?? []),
+        targetPlatform: (_projectData!['targetPlatform'] as String?) ?? 'App',
+        difficulty: (_projectData!['difficulty'] as String?) ?? 'Intermediate',
+        teamSkills: List<String>.from((_projectData!['skills'] as List?) ?? []),
       );
 
-      // Update current step to 5 (Code Generation)
+      // Update current step to 5 (Prompt Generation)
       await _projectService.updateCurrentStep(widget.projectSpaceId, 5);
 
-      setState(() {
-        _codeProject = codeProject;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _promptProject = promptProject;
+          _isLoading = false;
+        });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ Code generation project initialized with ${codeProject.modules.length} modules!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Prompt generation initialized with ${promptProject.modules.length} prompt modules!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
 
     } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Failed to initialize code generation: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Failed to initialize prompt generation: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  Future<void> _generateCodeForStep(CodeStep step, CodeModule module) async {
-    setState(() => _isGeneratingCode = true);
+  Future<void> _generatePromptForStep(CodeStep step, CodeModule module) async {
+    setState(() => _isGeneratingPrompts = true);
 
     try {
       final projectContext = '''
 Project: ${widget.projectName}
 Problem: ${widget.problem.description}
-Platform: ${_projectData!['targetPlatform']}
+Platform: ${(_projectData!['targetPlatform'] as String?) ?? 'App'}
 Solution: ${_solution!.title}
 Features: ${_solution!.keyFeatures.join(', ')}
 Tech Stack: ${_solution!.techStack.join(', ')}
 ''';
 
-      final generatedCode = await _codeService.generateCodeForStep(
+      final generatedPrompt = await _codeService.generateCodeForStep(
         step: step,
         projectContext: projectContext,
         projectData: _projectData!,
@@ -135,48 +205,75 @@ Tech Stack: ${_solution!.techStack.join(', ')}
         projectSpaceId: widget.projectSpaceId,
         moduleId: module.id,
         stepId: step.id,
-        generatedCode: generatedCode,
+        generatedCode: generatedPrompt,
+      );
+
+      // Update current step for progression
+      await _codeService.updateCurrentStep(
+        projectSpaceId: widget.projectSpaceId,
+        stepId: step.id,
       );
 
       // Reload the project to get updated data
       await _loadProjectData();
+      
+      // Check if all prompts are completed and enable Documentation step
+      if (_promptProject != null && _promptProject!.isCompleted) {
+        await _projectService.updateCurrentStep(widget.projectSpaceId, 6); // Enable Documentation
+      }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ Code generated for: ${step.title}'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Prompt generated for: ${step.title}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
 
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Failed to generate code: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Failed to generate prompt: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() => _isGeneratingCode = false);
+      if (mounted) {
+        setState(() => _isGeneratingPrompts = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_showAITools) {
+      return _buildAIToolsScreen();
+    }
+    
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Code Generation',
+          'Prompt Generation',
           style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         actions: [
-          if (_codeProject != null) 
+          // AI Tools button
+          IconButton(
+            onPressed: _toggleAIToolsView,
+            icon: const Icon(Icons.smart_toy),
+            tooltip: 'View AI Tools',
+          ),
+          if (_promptProject != null) 
             Padding(
               padding: const EdgeInsets.only(right: 16),
               child: Center(
                 child: Text(
-                  '${(_codeProject!.overallProgress * 100).toInt()}%',
+                  '${(_promptProject!.overallProgress * 100).toInt()}%',
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.bold,
                     color: const Color(0xff059669),
@@ -188,30 +285,31 @@ Tech Stack: ${_solution!.techStack.join(', ')}
       ),
       body: _isLoading 
           ? const Center(child: CircularProgressIndicator())
-          : _codeProject == null 
+          : _promptProject == null 
               ? _buildInitializationScreen()
-              : _buildCodeGenerationScreen(),
+              : _buildPromptGenerationScreen(),
     );
   }
 
   Widget _buildInitializationScreen() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
           // Progress Header
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Step 5: Code Generation',
+                  'Step 5: Prompt Generation',
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -220,7 +318,7 @@ Tech Stack: ${_solution!.techStack.join(', ')}
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Generate step-by-step code for your project',
+                  'Generate smart prompts for AI coding tools',
                   style: GoogleFonts.poppins(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -232,7 +330,7 @@ Tech Stack: ${_solution!.techStack.join(', ')}
                   'Project: ${widget.projectName}',
                   style: GoogleFonts.poppins(
                     fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 2,
@@ -249,18 +347,38 @@ Tech Stack: ${_solution!.techStack.join(', ')}
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.2)),
+              border: Border.all(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Choose Your Learning Mode',
-                  style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xff1f2937),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'AI-Powered Prompt Generation',
+                        style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xff1f2937),
+                        ),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _toggleAIToolsView,
+                      icon: const Icon(Icons.smart_toy, size: 20),
+                      label: Text(
+                        'View AI Tools',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xff2563eb),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 
@@ -282,7 +400,7 @@ Tech Stack: ${_solution!.techStack.join(', ')}
                           const SizedBox(width: 12),
                           Flexible(
                             child: Text(
-                              'Step-by-Step Code Prompts',
+                              'Smart AI Prompts Generator',
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -309,8 +427,8 @@ Tech Stack: ${_solution!.techStack.join(', ')}
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'Learn while building! Get modular code with explanations, allowing you to understand each component step by step.',
+                Text(
+                  'Generate a comprehensive project overview prompt first, then get step-by-step prompts for AI coding tools. Start by introducing your project to your AI assistant, then move through development phases systematically!',
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           color: const Color(0xff374151),
@@ -320,7 +438,7 @@ Tech Stack: ${_solution!.techStack.join(', ')}
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: _initializeCodeGeneration,
+                          onPressed: _initializePromptGeneration,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xff2563eb),
                             foregroundColor: Colors.white,
@@ -330,7 +448,7 @@ Tech Stack: ${_solution!.techStack.join(', ')}
                             ),
                           ),
                           child: Text(
-                            'Start Step-by-Step Generation',
+                            'Generate AI Prompts',
                             style: GoogleFonts.poppins(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -403,12 +521,13 @@ Tech Stack: ${_solution!.techStack.join(', ')}
             ),
           ),
         ],
+        ),
       ),
     );
   }
 
-  Widget _buildCodeGenerationScreen() {
-    if (_codeProject == null) return const SizedBox();
+  Widget _buildPromptGenerationScreen() {
+    if (_promptProject == null) return const SizedBox();
     
     return Column(
       children: [
@@ -430,7 +549,7 @@ Tech Stack: ${_solution!.techStack.join(', ')}
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Step 5: Code Generation',
+                          'Step 5: Prompt Generation',
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -452,7 +571,7 @@ Tech Stack: ${_solution!.techStack.join(', ')}
                     ),
                   ),
                   CircularProgressIndicator(
-                    value: _codeProject!.overallProgress,
+                    value: _promptProject!.overallProgress,
                     backgroundColor: Colors.grey.shade300,
                     valueColor: const AlwaysStoppedAnimation<Color>(Color(0xff059669)),
                   ),
@@ -460,7 +579,7 @@ Tech Stack: ${_solution!.techStack.join(', ')}
               ),
               const SizedBox(height: 8),
               LinearProgressIndicator(
-                value: _codeProject!.overallProgress,
+                value: _promptProject!.overallProgress,
                 backgroundColor: Colors.grey.shade300,
                 valueColor: const AlwaysStoppedAnimation<Color>(Color(0xff059669)),
               ),
@@ -472,9 +591,9 @@ Tech Stack: ${_solution!.techStack.join(', ')}
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.all(20),
-            itemCount: _codeProject!.modules.length,
+            itemCount: _promptProject!.modules.length,
             itemBuilder: (context, index) {
-              final module = _codeProject!.modules[index];
+              final module = _promptProject!.modules[index];
               return _buildModuleCard(module, index);
             },
           ),
@@ -553,15 +672,27 @@ Tech Stack: ${_solution!.techStack.join(', ')}
   }
 
   Widget _buildStepTile(CodeStep step, CodeModule module) {
+    // Special styling for project overview step
+    final isProjectOverview = step.id == 'project_overview';
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: step.isCompleted ? const Color(0xfff0fdf4) : const Color(0xfff8fafc),
+          color: step.isCompleted 
+              ? const Color(0xfff0fdf4) 
+              : isProjectOverview 
+                  ? const Color(0xfff0f9ff) // Special blue tint for overview
+                  : const Color(0xfff8fafc),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: step.isCompleted ? const Color(0xff059669) : Colors.grey.shade200,
+            color: step.isCompleted 
+                ? const Color(0xff059669) 
+                : isProjectOverview
+                    ? const Color(0xff2563eb) // Blue border for overview
+                    : Colors.grey.shade200,
+            width: isProjectOverview ? 2 : 1,
           ),
         ),
         child: Column(
@@ -570,32 +701,67 @@ Tech Stack: ${_solution!.techStack.join(', ')}
             Row(
               children: [
                 Icon(
-                  step.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: step.isCompleted ? const Color(0xff059669) : const Color(0xff6b7280),
+                  step.isCompleted 
+                      ? Icons.check_circle 
+                      : isProjectOverview
+                          ? Icons.rocket_launch
+                          : Icons.radio_button_unchecked,
+                  color: step.isCompleted 
+                      ? const Color(0xff059669) 
+                      : isProjectOverview
+                          ? const Color(0xff2563eb)
+                          : const Color(0xff6b7280),
                   size: 20,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    step.title,
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xff1f2937),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              step.title,
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xff1f2937),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
+                            ),
+                          ),
+                          if (isProjectOverview && !step.isCompleted)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xff2563eb),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'START HERE',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                if (!step.isCompleted && !_isGeneratingCode)
+                if (!step.isCompleted && !_isGeneratingPrompts)
                   IconButton(
-                    onPressed: () => _generateCodeForStep(step, module),
-                    icon: const Icon(Icons.play_arrow),
-                    tooltip: 'Generate Code',
+                    onPressed: () => _generatePromptForStep(step, module),
+                    icon: const Icon(Icons.auto_awesome),
+                    tooltip: 'Generate Prompt',
                     constraints: const BoxConstraints(maxWidth: 40, maxHeight: 40),
                     padding: const EdgeInsets.all(8),
                   ),
-                if (_isGeneratingCode)
+                if (_isGeneratingPrompts)
                   const SizedBox(
                     width: 24,
                     height: 24,
@@ -604,19 +770,66 @@ Tech Stack: ${_solution!.techStack.join(', ')}
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              step.description,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: const Color(0xff6b7280),
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  step.description,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: const Color(0xff6b7280),
+                  ),
+                ),
+                if (isProjectOverview && !step.isCompleted) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xff2563eb).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xff2563eb).withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: Color(0xff2563eb),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'How it works:',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xff2563eb),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '1. Generate and copy the project overview prompt\n2. Paste it in your AI tool (Cursor, Claude, etc.)\n3. Wait for AI confirmation\n4. Proceed to next prompts step by step',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: const Color(0xff374151),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
             if (step.filePath != null) ...[
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xff2563eb).withOpacity(0.1),
+                  color: const Color(0xff2563eb).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -645,7 +858,7 @@ Tech Stack: ${_solution!.techStack.join(', ')}
                       children: [
                         Expanded(
                           child: Text(
-                            'Generated Code',
+                            'Generated AI Prompt',
                             style: GoogleFonts.poppins(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -658,13 +871,14 @@ Tech Stack: ${_solution!.techStack.join(', ')}
                             Clipboard.setData(ClipboardData(text: step.generatedCode!));
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Code copied to clipboard!'),
+                                content: Text('Prompt copied to clipboard! 📋\nPaste it in your AI tool to generate code.'),
                                 backgroundColor: Color(0xff059669),
+                                duration: Duration(seconds: 3),
                               ),
                             );
                           },
                           icon: const Icon(Icons.copy, color: Colors.white, size: 16),
-                          tooltip: 'Copy Code',
+                          tooltip: 'Copy Prompt',
                           constraints: const BoxConstraints(maxWidth: 40, maxHeight: 40),
                           padding: const EdgeInsets.all(8),
                         ),
@@ -693,4 +907,259 @@ Tech Stack: ${_solution!.techStack.join(', ')}
       ),
     );
   }
+  
+  // AI Tools Screen
+  Widget _buildAIToolsScreen() {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text(
+          'AI Development Tools',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _toggleAIToolsView,
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xff2563eb), Color(0xff3b82f6)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '🤖 Choose Your AI Coding Partner',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Copy our smart prompts and paste them into these AI tools to build your ${widget.projectName} project!',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.white.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // AI Tools List
+            ..._aiTools.map((tool) => _buildAIToolCard(tool)),
+            
+            const SizedBox(height: 32),
+            
+            // Back to Prompts Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _toggleAIToolsView,
+                icon: const Icon(Icons.arrow_back),
+                label: Text(
+                  'Back to Prompt Generation',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xff2563eb),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildAIToolCard(AITool tool) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Text(
+                  tool.logo,
+                  style: const TextStyle(fontSize: 32),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tool.name,
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xff1f2937),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        tool.description,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: const Color(0xff6b7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => _launchUrl(tool.downloadUrl),
+                  icon: const Icon(Icons.launch),
+                  tooltip: 'Open ${tool.name}',
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Features
+            Text(
+              'Key Features:',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xff374151),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: tool.features.map((feature) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xff2563eb).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xff2563eb).withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    feature,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xff2563eb),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // How to Use
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xfff8fafc),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'How to Use:',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xff374151),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    tool.howToUse,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: const Color(0xff6b7280),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Action Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _launchUrl(tool.downloadUrl),
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: Text(
+                  'Open ${tool.name}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xff2563eb),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// AI Tool Model
+class AITool {
+  final String name;
+  final String description;
+  final String downloadUrl;
+  final String logo;
+  final String howToUse;
+  final List<String> features;
+
+  AITool({
+    required this.name,
+    required this.description,
+    required this.downloadUrl,
+    required this.logo,
+    required this.howToUse,
+    required this.features,
+  });
 }

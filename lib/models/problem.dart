@@ -46,13 +46,13 @@ class Problem {
   });
 
   factory Problem.fromMap(String id, Map<dynamic, dynamic> map) {
-    List<String> _toStringList(dynamic v) {
+    List<String> toStringList(dynamic v) {
       if (v == null) return <String>[];
       if (v is List) return v.map((e) => e.toString()).toList();
       return <String>[];
     }
 
-    List<int> _toIntList(dynamic v) {
+    List<int> toIntList(dynamic v) {
       if (v == null) return <int>[];
       if (v is List) {
         return v.map((e) {
@@ -68,24 +68,24 @@ class Problem {
       title: map['title']?.toString() ?? '',
       domain: map['domain']?.toString() ?? '',
       description: map['description']?.toString() ?? '',
-      platform: _toStringList(map['platform']),
-      year: _toIntList(map['year']),
-      skills: _toStringList(map['skills']),
+      platform: toStringList(map['platform']),
+      year: toIntList(map['year']),
+      skills: toStringList(map['skills']),
       difficulty: map['difficulty']?.toString() ?? '',
       scope: map['scope']?.toString() ?? '',
-      beneficiaries: _toStringList(map['beneficiaries']),
-      features: _toStringList(map['features']),
-      dataSources: _toStringList(map['data_sources']),
+      beneficiaries: toStringList(map['beneficiaries']),
+      features: toStringList(map['features']),
+      dataSources: toStringList(map['data_sources']),
       updatedAt: (map['updatedAt'] is int)
           ? (map['updatedAt'] as int)
           : int.tryParse(map['updatedAt']?.toString() ?? '0') ?? 0,
       detailedDescription: map['detailedDescription']?.toString(),
-      realLifeExample: _toStringList(map['realLifeExample']),
-      detailedFeatures: _toStringList(map['detailedFeatures']),
-      implementationSteps: _toStringList(map['implementationSteps']),
-      challenges: _toStringList(map['challenges']),
-      learningOutcomes: _toStringList(map['learningOutcomes']),
-      hasDetailedInfo: map['hasDetailedInfo'] ?? false,
+      realLifeExample: toStringList(map['realLifeExample']),
+      detailedFeatures: toStringList(map['detailedFeatures']),
+      implementationSteps: toStringList(map['implementationSteps']),
+      challenges: toStringList(map['challenges']),
+      learningOutcomes: toStringList(map['learningOutcomes']),
+      hasDetailedInfo: (map['hasDetailedInfo'] as bool?) ?? false,
     );
   }
 

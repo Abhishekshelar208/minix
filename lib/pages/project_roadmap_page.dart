@@ -34,7 +34,6 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
 
   // State
   DateTime? _selectedDeadline;
-  List<String> _teamSkills = [];
   Map<String, dynamic>? _projectSpaceData;
   Map<String, dynamic>? _selectedSolution;
   bool _isLoadingData = true;
@@ -94,21 +93,6 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
     }
   }
 
-  void _addSkill() {
-    final skill = _skillController.text.trim();
-    if (skill.isNotEmpty && !_teamSkills.contains(skill)) {
-      setState(() {
-        _teamSkills.add(skill);
-        _skillController.clear();
-      });
-    }
-  }
-
-  void _removeSkill(int index) {
-    setState(() {
-      _teamSkills.removeAt(index);
-    });
-  }
 
   Future<void> _selectDeadline() async {
     final now = DateTime.now();
@@ -156,7 +140,9 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
 
     try {
       final startDate = DateTime.now();
-      final teamMembers = List<String>.from(_projectSpaceData?['teamMembers'] ?? ['Team']);
+      final teamMembers = _projectSpaceData?['teamMembers'] != null 
+          ? List<String>.from(_projectSpaceData!['teamMembers'] as List)
+          : <String>['Team'];
       final difficulty = _projectSpaceData?['difficulty'] ?? 'Intermediate';
       final targetPlatform = _projectSpaceData?['targetPlatform'] ?? 'App';
       
@@ -171,8 +157,8 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
         teamSkills: problemSkills,
         startDate: startDate,
         endDate: _selectedDeadline!,
-        difficulty: difficulty,
-        targetPlatform: targetPlatform,
+        difficulty: difficulty.toString(),
+        targetPlatform: targetPlatform.toString(),
         problem: widget.problem, // Pass full problem context
         solution: _selectedSolution, // Pass selected solution context
       );
@@ -198,15 +184,17 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
         // Update current step to 5 (Code Generation)
         await _projectService.updateCurrentStep(widget.projectSpaceId, 5);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Roadmap with ${tasks.length} tasks generated successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Roadmap with ${tasks.length} tasks generated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
         
         // Auto-return to project steps page after 2 seconds
-        await Future.delayed(const Duration(seconds: 2));
+        await Future<void>.delayed(const Duration(seconds: 2));
         if (mounted) {
           // Return to Project Steps page to show progress and allow further steps
           Navigator.of(context).pop();
@@ -237,10 +225,10 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
       if (roadmapId == null) return;
 
       await _projectService.updateTaskStatus(
-        roadmapId: roadmapId,
+        roadmapId: roadmapId.toString(),
         taskId: task.id,
         isCompleted: !task.isCompleted,
-        completedBy: _projectSpaceData?['teamMembers']?.first ?? 'User',
+        completedBy: (_projectSpaceData?['teamMembers'] as List?)?.first?.toString() ?? 'User',
       );
 
       // Update local state
@@ -250,26 +238,30 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
           _generatedTasks![index] = task.copyWith(
             isCompleted: !task.isCompleted,
             completedAt: !task.isCompleted ? DateTime.now() : null,
-            completedBy: !task.isCompleted ? (_projectSpaceData?['teamMembers']?.first ?? 'User') : null,
+            completedBy: !task.isCompleted ? ((_projectSpaceData?['teamMembers'] as List?)?.first?.toString() ?? 'User') : null,
           );
         }
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(task.isCompleted 
-              ? '✅ Task "${task.title}" marked as incomplete' 
-              : '✅ Task "${task.title}" completed!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(task.isCompleted 
+                ? '✅ Task "${task.title}" marked as incomplete' 
+                : '✅ Task "${task.title}" completed!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Failed to update task: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Failed to update task: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -500,9 +492,9 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xff2563eb).withOpacity(0.1),
+                          color: const Color(0xff2563eb).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xff2563eb).withOpacity(0.3)),
+                          border: Border.all(color: const Color(0xff2563eb).withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           skill,
@@ -579,7 +571,7 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 2),
                 ),
@@ -650,9 +642,9 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xff059669).withOpacity(0.1),
+                color: const Color(0xff059669).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xff059669).withOpacity(0.3)),
+                border: Border.all(color: const Color(0xff059669).withValues(alpha: 0.3)),
               ),
               child: Column(
                 children: [
@@ -720,13 +712,13 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: task.isCompleted 
-              ? const Color(0xff059669).withOpacity(0.3)
+              ? const Color(0xff059669).withValues(alpha: 0.3)
               : Colors.grey.shade200,
           width: task.isCompleted ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -883,7 +875,7 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -1054,7 +1046,7 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
                     children: (_selectedSolution!['techStack'] as List).take(6).map((tech) => Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xff059669).withOpacity(0.1),
+                        color: const Color(0xff059669).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(

@@ -77,13 +77,13 @@ class ProjectRoadmap {
 
   factory ProjectRoadmap.fromMap(Map<String, dynamic> map, List<Task> tasks) {
     return ProjectRoadmap(
-      projectSpaceId: map['projectSpaceId'] ?? '',
-      startDate: DateTime.fromMillisecondsSinceEpoch(map['startDate'] ?? 0),
-      endDate: DateTime.fromMillisecondsSinceEpoch(map['endDate'] ?? 0),
+      projectSpaceId: (map['projectSpaceId'] ?? '').toString(),
+      startDate: DateTime.fromMillisecondsSinceEpoch((map['startDate'] as num? ?? 0).toInt()),
+      endDate: DateTime.fromMillisecondsSinceEpoch((map['endDate'] as num? ?? 0).toInt()),
       tasks: tasks,
-      settings: map['settings'] != null ? Map<String, dynamic>.from(map['settings']) : null,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] ?? 0),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] ?? 0),
+      settings: map['settings'] != null ? Map<String, dynamic>.from(map['settings'] as Map) : null,
+      createdAt: DateTime.fromMillisecondsSinceEpoch((map['createdAt'] as num? ?? 0).toInt()),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch((map['updatedAt'] as num? ?? 0).toInt()),
     );
   }
 
@@ -145,19 +145,27 @@ class ProjectSpaceSummary {
   factory ProjectSpaceSummary.fromMap(String id, Map<String, dynamic> map) {
     return ProjectSpaceSummary(
       id: id,
-      teamName: map['teamName'] ?? '',
-      teamMembers: List<String>.from(map['teamMembers'] ?? []),
-      yearOfStudy: map['yearOfStudy'] ?? 1,
-      targetPlatform: map['targetPlatform'] ?? '',
-      difficulty: map['difficulty'] ?? 'Beginner',
-      status: map['status'] ?? 'Draft',
-      currentStep: map['currentStep'] ?? 1,
-      projectName: map['projectName'],
-      selectedProblemTitle: map['selectedProblemTitle'],
-      roadmapId: map['roadmapId'],
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] ?? 0),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] ?? 0),
+      teamName: (map['teamName'] ?? '').toString(),
+      teamMembers: _parseStringList(map['teamMembers']),
+      yearOfStudy: (map['yearOfStudy'] as num? ?? 0).toInt(),
+      targetPlatform: (map['targetPlatform'] as String?) ?? '',
+      difficulty: (map['difficulty'] as String?) ?? 'Beginner',
+      status: (map['status'] as String?) ?? 'Draft',
+      currentStep: (map['currentStep'] as num? ?? 0).toInt(),
+      projectName: map['projectName'] as String?,
+      selectedProblemTitle: map['selectedProblemTitle'] as String?,
+      roadmapId: map['roadmapId'] as String?,
+      createdAt: DateTime.fromMillisecondsSinceEpoch((map['createdAt'] as num? ?? 0).toInt()),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch((map['updatedAt'] as num? ?? 0).toInt()),
     );
+  }
+
+  static List<String> _parseStringList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) {
+      return value.map((item) => item?.toString() ?? '').toList();
+    }
+    return [];
   }
 
   String get progressDescription {

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:minix/config/secrets.dart';
 import 'package:minix/models/problem.dart';
@@ -21,7 +22,7 @@ class GeminiProblemsService {
       throw StateError('Missing GEMINI_API_KEY. Pass via --dart-define=GEMINI_API_KEY=...');
     }
 
-    print('🚀 Calling Gemini API for domain: $domain, year: $year, skills: $skills');
+    debugPrint('🚀 Calling Gemini API for domain: $domain, year: $year, skills: $skills');
 
     final prompt = _buildPrompt(
       domain: domain,
@@ -32,7 +33,7 @@ class GeminiProblemsService {
       count: count,
     );
 
-    print('📝 Prompt sent to Gemini: ${prompt.substring(0, 100)}...');
+    debugPrint('📝 Prompt sent to Gemini: ${prompt.substring(0, 100)}...');
 
     // Use gemini-2.5-flash (confirmed working with your API key)
     final model = GenerativeModel(
@@ -47,24 +48,24 @@ class GeminiProblemsService {
     
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        print('🔄 Attempt $attempt/$maxAttempts');
+        debugPrint('🔄 Attempt $attempt/$maxAttempts');
         final response = await model
             .generateContent([Content.text(prompt)])
             .timeout(const Duration(minutes: 2)); // 2 minutes timeout
 
         text = response.text ?? '';
-        print('📥 Raw Gemini response (${text.length} chars): ${text.substring(0, text.length.clamp(0, 200))}...');
+        debugPrint('📥 Raw Gemini response (${text.length} chars): ${text.substring(0, text.length.clamp(0, 200))}...');
 
         if (text.isNotEmpty) break; // Success
         
         if (attempt < maxAttempts) {
-          print('⚠️ Empty response, retrying...');
-          await Future.delayed(Duration(seconds: attempt * 2));
+          debugPrint('⚠️ Empty response, retrying...');
+          await Future<void>.delayed(Duration(seconds: attempt * 2));
         }
       } catch (e) {
-        print('⚠️ Attempt $attempt failed: $e');
+        debugPrint('⚠️ Attempt $attempt failed: $e');
         if (attempt == maxAttempts) rethrow;
-        await Future.delayed(Duration(seconds: attempt * 2));
+        await Future<void>.delayed(Duration(seconds: attempt * 2));
       }
     }
 
@@ -74,14 +75,14 @@ class GeminiProblemsService {
 
     // Parse JSON from text. Be tolerant to code fences or prose.
     final jsonString = _extractJsonArray(text);
-    print('🔍 Extracted JSON: ${jsonString.substring(0, jsonString.length.clamp(0, 300))}...');
+    debugPrint('🔍 Extracted JSON: ${jsonString.substring(0, jsonString.length.clamp(0, 300))}...');
     
     if (jsonString.isEmpty || jsonString == '[]') {
       throw StateError('No valid JSON found in Gemini response. Raw text: ${text.substring(0, 500)}...');
     }
 
     final List<dynamic> arr = jsonDecode(jsonString) as List<dynamic>;
-    print('✅ Parsed ${arr.length} items from JSON');
+    debugPrint('✅ Parsed ${arr.length} items from JSON');
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final List<Problem> problems = [];
@@ -106,11 +107,11 @@ class GeminiProblemsService {
           'updatedAt': item['updatedAt'] ?? now,
         };
         problems.add(Problem.fromMap(id, map));
-        print('✅ Created problem: ${map['title']}');
+        debugPrint('✅ Created problem: ${map['title']}');
       }
     }
     
-    print('🎉 Successfully created ${problems.length} AI problems');
+    debugPrint('🎉 Successfully created ${problems.length} AI problems');
     return problems;
   }
   
@@ -120,10 +121,10 @@ class GeminiProblemsService {
       throw StateError('Missing GEMINI_API_KEY. Pass via --dart-define=GEMINI_API_KEY=...');
     }
 
-    print('🔍 Generating detailed problem info for: ${baseProblem.title}');
+    debugPrint('🔍 Generating detailed problem info for: ${baseProblem.title}');
 
     final prompt = _buildDetailedPrompt(baseProblem);
-    print('📝 Detailed prompt sent to Gemini: ${prompt.substring(0, 100)}...');
+    debugPrint('📝 Detailed prompt sent to Gemini: ${prompt.substring(0, 100)}...');
 
     final model = GenerativeModel(
       model: 'gemini-2.5-flash',
@@ -137,7 +138,7 @@ class GeminiProblemsService {
           .timeout(const Duration(minutes: 2));
 
       final text = response.text ?? '';
-      print('📥 Detailed response (${text.length} chars): ${text.substring(0, text.length.clamp(0, 200))}...');
+      debugPrint('📥 Detailed response (${text.length} chars): ${text.substring(0, text.length.clamp(0, 200))}...');
 
       if (text.isEmpty) {
         throw StateError('Gemini returned empty detailed response');
@@ -145,14 +146,14 @@ class GeminiProblemsService {
 
       // Parse JSON from text
       final jsonString = _extractJsonObject(text);
-      print('🔍 Extracted detailed JSON: ${jsonString.substring(0, jsonString.length.clamp(0, 300))}...');
+      debugPrint('🔍 Extracted detailed JSON: ${jsonString.substring(0, jsonString.length.clamp(0, 300))}...');
       
       if (jsonString.isEmpty || jsonString == '{}') {
         throw StateError('No valid JSON found in detailed response. Raw text: ${text.substring(0, 500)}...');
       }
 
       final Map<String, dynamic> detailedData = jsonDecode(jsonString) as Map<String, dynamic>;
-      print('✅ Parsed detailed data successfully');
+      debugPrint('✅ Parsed detailed data successfully');
       
       // Create updated problem with detailed information
       final detailedProblem = baseProblem.copyWith(
@@ -165,10 +166,10 @@ class GeminiProblemsService {
         hasDetailedInfo: true,
       );
       
-      print('🎉 Successfully generated detailed problem info');
+      debugPrint('🎉 Successfully generated detailed problem info');
       return detailedProblem;
     } catch (e) {
-      print('⚠️ Error generating detailed problem: $e');
+      debugPrint('⚠️ Error generating detailed problem: $e');
       rethrow;
     }
   }
@@ -181,7 +182,6 @@ class GeminiProblemsService {
     String? difficulty,
     required int count,
   }) {
-    final plat = platforms.isEmpty ? 'App, Web, Website (choose best fit)' : platforms.join(', ');
     final sk = skills.isEmpty ? 'Flutter, React, Firebase, Node (choose sensible)' : skills.join(', ');
     final diff = (difficulty == null || difficulty.isEmpty) ? 'Beginner or Intermediate' : difficulty;
 
@@ -234,103 +234,6 @@ Return ONLY the JSON object. Do not wrap in code fences.
 ''';
   }
 
-  List<Problem> _getFallbackProblems({
-    required String domain,
-    required int year,
-    required List<String> platforms,
-    required List<String> skills,
-    String? difficulty,
-    required int count,
-  }) {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final defaultPlatforms = platforms.isEmpty ? ['App', 'Web'] : platforms;
-    final defaultSkills = skills.isEmpty ? ['Flutter', 'Firebase'] : skills;
-    final defaultDifficulty = difficulty ?? 'Intermediate';
-    
-    final Map<String, List<Map<String, dynamic>>> sampleProblems = {
-      'College': [
-        {
-          'title': 'Smart Attendance System',
-          'description': 'Automate attendance tracking using QR codes or face recognition',
-          'features': ['QR code scanning', 'Face recognition', 'Attendance reports', 'Student dashboard', 'Teacher interface'],
-          'beneficiaries': ['Students', 'Teachers', 'Administration'],
-          'data_sources': ['Firebase Firestore', 'Camera API', 'CSV export'],
-        },
-        {
-          'title': 'Campus Event Management',
-          'description': 'Platform for organizing and managing college events and activities',
-          'features': ['Event creation', 'Registration system', 'Notifications', 'Calendar integration', 'Feedback system'],
-          'beneficiaries': ['Students', 'Event organizers', 'Administration'],
-          'data_sources': ['Firebase RTDB', 'Push notifications', 'Calendar API'],
-        },
-        {
-          'title': 'Library Book Tracker',
-          'description': 'Digital system to track book borrowing and returns',
-          'features': ['Book search', 'Issue/return tracking', 'Due date reminders', 'Fine calculation', 'Inventory management'],
-          'beneficiaries': ['Students', 'Librarians'],
-          'data_sources': ['SQLite', 'Barcode scanner', 'SMS API'],
-        },
-      ],
-      'Hospital': [
-        {
-          'title': 'Patient Appointment System',
-          'description': 'Online booking and management of patient appointments',
-          'features': ['Online booking', 'Doctor schedules', 'Patient records', 'Appointment reminders', 'Payment integration'],
-          'beneficiaries': ['Patients', 'Doctors', 'Hospital staff'],
-          'data_sources': ['Firebase Firestore', 'Payment gateway', 'SMS API'],
-        },
-        {
-          'title': 'Medicine Inventory Tracker',
-          'description': 'Track medicine stock levels and expiry dates',
-          'features': ['Stock monitoring', 'Expiry alerts', 'Supplier management', 'Purchase orders', 'Reports'],
-          'beneficiaries': ['Pharmacists', 'Hospital management'],
-          'data_sources': ['MySQL', 'Barcode scanner', 'Email notifications'],
-        },
-      ],
-      'E-commerce': [
-        {
-          'title': 'Local Marketplace App',
-          'description': 'Connect local buyers and sellers in your community',
-          'features': ['Product listings', 'Search and filters', 'Chat system', 'Payment gateway', 'Order tracking'],
-          'beneficiaries': ['Local sellers', 'Customers', 'Community'],
-          'data_sources': ['Firebase Firestore', 'Image storage', 'Payment API'],
-        },
-      ],
-      'Parking': [
-        {
-          'title': 'Smart Parking Finder',
-          'description': 'Help drivers find available parking spots in real-time',
-          'features': ['Spot availability', 'Reservation system', 'Payment integration', 'Navigation', 'History tracking'],
-          'beneficiaries': ['Drivers', 'Parking lot owners'],
-          'data_sources': ['Firebase RTDB', 'Maps API', 'Payment gateway'],
-        },
-      ],
-    };
-
-    final domainProblems = sampleProblems[domain] ?? sampleProblems['College']!;
-    final selectedProblems = domainProblems.take(count.clamp(1, domainProblems.length)).toList();
-    
-    return selectedProblems.asMap().entries.map((entry) {
-      final i = entry.key;
-      final problem = entry.value;
-      final id = 'fallback_${domain.toLowerCase()}_${now}_$i';
-      
-      return Problem.fromMap(id, {
-        'title': problem['title'],
-        'domain': domain,
-        'description': problem['description'],
-        'platform': defaultPlatforms,
-        'year': [year, if (year > 1) year - 1, if (year < 4) year + 1].take(2).toList(),
-        'skills': defaultSkills,
-        'difficulty': defaultDifficulty,
-        'scope': 'Medium',
-        'beneficiaries': problem['beneficiaries'],
-        'features': problem['features'],
-        'data_sources': problem['data_sources'],
-        'updatedAt': now,
-      });
-    }).toList();
-  }
 
   List<String>? _ensureList(dynamic value) {
     if (value == null) return null;
@@ -383,7 +286,7 @@ Return ONLY the JSON object. Do not wrap in code fences.
     final s2 = cleanText.indexOf('{');
     final e2 = cleanText.lastIndexOf('}');
     if (s2 != -1 && e2 != -1 && e2 > s2) {
-      return '[' + cleanText.substring(s2, e2 + 1) + ']';
+      return '[${cleanText.substring(s2, e2 + 1)}]';
     }
     
     // Last resort: try original text
@@ -446,10 +349,30 @@ Return ONLY the JSON object. Do not wrap in code fences.
     if (apiKey.isEmpty) {
       throw StateError('Missing GEMINI_API_KEY. Pass via --dart-define=GEMINI_API_KEY=...');
     }
-
-    print('🚀 Generating roadmap for: $projectTitle');
-
+    
+    // Validate API key format
+    if (apiKey.length < 30) {
+      debugPrint('⚠️ API key seems too short (${apiKey.length} chars). Please check your Gemini API key.');
+    }
+    
+    debugPrint('🔑 Using API key: ${apiKey.substring(0, 8)}...');
+    debugPrint('📊 Roadmap params: Platform=$targetPlatform, Duration=${endDate.difference(startDate).inDays} days, Team=${teamMembers.length}');
+    
+    // Early fallback for very short timelines
     final durationInDays = endDate.difference(startDate).inDays;
+    if (durationInDays < 7) {
+      debugPrint('⚠️ Timeline too short (<7 days), using fallback roadmap');
+      return _generateFallbackRoadmap(
+        projectTitle: projectTitle,
+        durationInDays: durationInDays,
+        startDate: startDate,
+        endDate: endDate,
+        targetPlatform: targetPlatform,
+        teamMembers: teamMembers,
+      );
+    }
+
+    debugPrint('🚀 Generating roadmap for: $projectTitle');
     final prompt = _buildRoadmapPrompt(
       projectTitle: projectTitle,
       projectDescription: projectDescription,
@@ -464,7 +387,7 @@ Return ONLY the JSON object. Do not wrap in code fences.
       solution: solution,
     );
 
-    print('📝 Roadmap prompt sent to Gemini');
+    debugPrint('📝 Roadmap prompt sent to Gemini');
 
     final model = GenerativeModel(
       model: 'gemini-2.5-flash',
@@ -477,24 +400,55 @@ Return ONLY the JSON object. Do not wrap in code fences.
     
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        print('🔄 Roadmap generation attempt $attempt/$maxAttempts');
+        debugPrint('🔄 Roadmap generation attempt $attempt/$maxAttempts');
+        
+        // Reduce timeout for better error handling
         final response = await model
             .generateContent([Content.text(prompt)])
-            .timeout(const Duration(minutes: 3)); // 3 minutes for roadmap
+            .timeout(const Duration(seconds: 90)); // Reduced from 3 minutes
 
         text = response.text ?? '';
-        print('📥 Raw roadmap response (${text.length} chars)');
+        debugPrint('📥 Raw roadmap response (${text.length} chars)');
 
         if (text.isNotEmpty) break;
         
         if (attempt < maxAttempts) {
-          print('⚠️ Empty roadmap response, retrying...');
-          await Future.delayed(Duration(seconds: attempt * 2));
+          debugPrint('⚠️ Empty roadmap response, retrying...');
+          await Future<void>.delayed(Duration(seconds: attempt * 3));
         }
       } catch (e) {
-        print('⚠️ Roadmap attempt $attempt failed: $e');
-        if (attempt == maxAttempts) rethrow;
-        await Future.delayed(Duration(seconds: attempt * 2));
+        debugPrint('⚠️ Roadmap attempt $attempt failed: $e');
+        
+        // Check for specific API errors
+        if (e.toString().contains('500') || e.toString().contains('INTERNAL')) {
+          debugPrint('🚨 Server error detected, using fallback after attempt $attempt');
+          if (attempt >= 2) {
+            // Use fallback after 2 attempts on server errors
+            debugPrint('🔄 Switching to fallback roadmap generation');
+            return _generateFallbackRoadmap(
+              projectTitle: projectTitle,
+              durationInDays: durationInDays,
+              startDate: startDate,
+              endDate: endDate,
+              targetPlatform: targetPlatform,
+              teamMembers: teamMembers,
+            );
+          }
+        }
+        
+        if (attempt == maxAttempts) {
+          debugPrint('🚨 All attempts failed, using fallback roadmap');
+          return _generateFallbackRoadmap(
+            projectTitle: projectTitle,
+            durationInDays: durationInDays,
+            startDate: startDate,
+            endDate: endDate,
+            targetPlatform: targetPlatform,
+            teamMembers: teamMembers,
+          );
+        }
+        
+        await Future<void>.delayed(Duration(seconds: attempt * 3));
       }
     }
 
@@ -504,14 +458,14 @@ Return ONLY the JSON object. Do not wrap in code fences.
 
     // Parse JSON from text
     final jsonString = _extractJsonArray(text);
-    print('🔍 Extracted roadmap JSON: ${jsonString.substring(0, jsonString.length.clamp(0, 300))}...');
+    debugPrint('🔍 Extracted roadmap JSON: ${jsonString.substring(0, jsonString.length.clamp(0, 300))}...');
     
     if (jsonString.isEmpty || jsonString == '[]') {
       throw StateError('No valid roadmap JSON found in response');
     }
 
     final List<dynamic> arr = jsonDecode(jsonString) as List<dynamic>;
-    print('✅ Parsed ${arr.length} tasks from roadmap JSON');
+    debugPrint('✅ Parsed ${arr.length} tasks from roadmap JSON');
 
     final now = DateTime.now();
     final List<Task> tasks = [];
@@ -525,9 +479,9 @@ Return ONLY the JSON object. Do not wrap in code fences.
         DateTime taskDueDate;
         try {
           if (item['dueDate'] is String) {
-            taskDueDate = DateTime.parse(item['dueDate']);
+            taskDueDate = DateTime.parse(item['dueDate'] as String);
           } else if (item['dayOffset'] is int) {
-            taskDueDate = startDate.add(Duration(days: item['dayOffset']));
+            taskDueDate = startDate.add(Duration(days: item['dayOffset'] as int));
           } else {
             // Default distribution across project timeline
             final progressRatio = (i + 1) / arr.length;
@@ -560,7 +514,7 @@ Return ONLY the JSON object. Do not wrap in code fences.
           priority: item['priority']?.toString() ?? 'Medium',
           category: item['category']?.toString() ?? 'Development',
           assignedTo: _parseAssignedTo(item['assignedTo'], teamMembers),
-          estimatedHours: item['estimatedHours'] ?? 8,
+          estimatedHours: (item['estimatedHours'] as int?) ?? 8,
           dependencies: _toStringList(item['dependencies']) ?? [],
           metadata: metadata.isNotEmpty ? metadata : null,
           createdAt: now,
@@ -568,11 +522,11 @@ Return ONLY the JSON object. Do not wrap in code fences.
         );
         
         tasks.add(task);
-        print('✅ Created task: ${task.title} (Due: ${task.dueDate.day}/${task.dueDate.month})');
+        debugPrint('✅ Created task: ${task.title} (Due: ${task.dueDate.day}/${task.dueDate.month})');
       }
     }
     
-    print('🎉 Successfully generated ${tasks.length} roadmap tasks');
+    debugPrint('🎉 Successfully generated ${tasks.length} roadmap tasks');
     return tasks;
   }
 
@@ -592,159 +546,71 @@ Return ONLY the JSON object. Do not wrap in code fences.
     final teamSkillsStr = teamSkills.join(', ');
     final teamMembersStr = teamMembers.join(', ');
     
-    // Build comprehensive problem context
-    String problemContext = '''**Problem Context:**
-- Title: $projectTitle
-- Basic Description: $projectDescription
-- Domain: ${problem?.domain ?? 'Not specified'}
-- Scope: ${problem?.scope ?? 'Medium'}
-- Platform: $targetPlatform
-- Difficulty: $difficulty''';
+    // Build essential project context (optimized for API limits)
+    String problemContext = '''**Project:** $projectTitle
+**Description:** ${_truncateText(projectDescription, 200)}
+**Platform:** $targetPlatform | **Difficulty:** $difficulty''';
     
-    // Add detailed problem info if available
-    if (problem?.hasDetailedInfo == true) {
-      if (problem!.detailedDescription != null && problem.detailedDescription!.isNotEmpty) {
-        problemContext += '''\n- Detailed Description: ${problem.detailedDescription}''';
-      }
-      
-      if (problem.realLifeExample != null && problem.realLifeExample!.isNotEmpty) {
-        problemContext += '''\n- Real-life Examples:
-${problem.realLifeExample!.map((example) => '  • $example').join('\n')}''';
-      }
-      
-      if (problem.detailedFeatures != null && problem.detailedFeatures!.isNotEmpty) {
-        problemContext += '''\n- Expected Features:
-${problem.detailedFeatures!.map((feature) => '  • $feature').join('\n')}''';
-      }
-      
-      if (problem.implementationSteps != null && problem.implementationSteps!.isNotEmpty) {
-        problemContext += '''\n- Suggested Implementation Steps:
-${problem.implementationSteps!.asMap().entries.map((entry) => '  ${entry.key + 1}. ${entry.value}').join('\n')}''';
-      }
-      
-      if (problem.challenges != null && problem.challenges!.isNotEmpty) {
-        problemContext += '''\n- Known Challenges:
-${problem.challenges!.map((challenge) => '  • $challenge').join('\n')}''';
-      }
-      
-      if (problem.learningOutcomes != null && problem.learningOutcomes!.isNotEmpty) {
-        problemContext += '''\n- Learning Outcomes:
-${problem.learningOutcomes!.map((outcome) => '  • $outcome').join('\n')}''';
-      }
+    // Add key features from problem (limited)
+    if (problem?.features.isNotEmpty == true) {
+      final limitedFeatures = problem!.features.take(3).map((f) => _truncateText(f, 50)).join(', ');
+      problemContext += '''\n**Features:** $limitedFeatures''';
     }
     
-    // Build solution context
+    // Add essential solution info (limited)
     String solutionContext = '';
     if (solution != null) {
-      solutionContext = '''\n\n**Selected Solution Context:**
-- Solution Title: ${solution['title'] ?? 'Custom Solution'}
-- Approach: ${solution['description'] ?? 'No description available'}''';
-      
-      if (solution['detailedDescription'] != null && solution['detailedDescription'].toString().isNotEmpty) {
-        solutionContext += '''\n- Detailed Approach: ${solution['detailedDescription']}''';
-      }
-      
-      if (solution['keyFeatures'] != null) {
-        final features = solution['keyFeatures'] as List?;
-        if (features != null && features.isNotEmpty) {
-          solutionContext += '''\n- Key Features:
-${features.map((feature) => '  • $feature').join('\n')}''';
-        }
-      }
+      final solutionTitle = _truncateText(solution['title']?.toString() ?? '', 50);
+      solutionContext = '''\n**Solution:** $solutionTitle''';
       
       if (solution['techStack'] != null) {
         final techStack = solution['techStack'] as List?;
         if (techStack != null && techStack.isNotEmpty) {
-          solutionContext += '''\n- Technology Stack:
-${techStack.map((tech) => '  • $tech').join('\n')}''';
-        }
-      }
-      
-      if (solution['implementationSteps'] != null) {
-        final steps = solution['implementationSteps'] as List?;
-        if (steps != null && steps.isNotEmpty) {
-          solutionContext += '''\n- Implementation Steps:
-${steps.asMap().entries.map((entry) => '  ${entry.key + 1}. ${entry.value}').join('\n')}''';
-        }
-      }
-      
-      if (solution['challenges'] != null) {
-        final challenges = solution['challenges'] as List?;
-        if (challenges != null && challenges.isNotEmpty) {
-          solutionContext += '''\n- Expected Challenges:
-${challenges.map((challenge) => '  • $challenge').join('\n')}''';
-        }
-      }
-      
-      if (solution['timeline'] != null) {
-        final timeline = solution['timeline'] as Map?;
-        if (timeline != null && timeline.isNotEmpty) {
-          solutionContext += '''\n- Estimated Timeline:
-${timeline.entries.map((entry) => '  • ${entry.key}: ${entry.value}').join('\n')}''';
+          final limitedTech = techStack.take(4).join(', ');
+          solutionContext += ''' | **Tech:** $limitedTech''';
         }
       }
     }
     
     return '''
-You are an expert project management consultant creating a comprehensive, detailed roadmap for an engineering project. Use ALL the provided context to generate the most relevant and practical roadmap.
+Create a student-friendly project roadmap with 12-16 simple tasks.
 
 $problemContext$solutionContext
 
-**Team & Timeline:**
-- Duration: $durationInDays days (from ${startDate.day}/${startDate.month}/${startDate.year} to ${endDate.day}/${endDate.month}/${endDate.year})
-- Team Members: $teamMembersStr
-- Team Skills: $teamSkillsStr
+**Team:** $teamMembersStr | **Duration:** $durationInDays days | **Skills:** $teamSkillsStr
 
+**Task Format (JSON Array):**
+[
+  {
+    "title": "Task name",
+    "description": "Simple description",
+    "category": "Planning|Learning|Setup|Development|Testing|Final",
+    "priority": "High|Medium|Low",
+    "estimatedHours": 4,
+    "assignedTo": "Team",
+    "dayOffset": 1,
+    "dependencies": [],
+    "deliverables": ["What to create"],
+    "skills_required": ["Skills needed"]
+  }
+]
 
-**STUDENT-FRIENDLY MINI PROJECT ROADMAP:**
-Create a SIMPLE, EASY-TO-FOLLOW roadmap perfect for college students building mini projects. Generate 12-18 basic tasks as a STRICT JSON array.
+**Guidelines:**
+1. Use simple, clear language for students
+2. Each task: 2-8 hours, 1-2 days max
+3. Focus on core features, avoid complexity
+4. Include learning tasks for new technologies
+5. Start with planning, end with demo/docs
 
-**Focus on SIMPLICITY and LEARNING:**
-- Tasks should be beginner-friendly and achievable for students
-- Use simple language that students can easily understand
-- Break down complex concepts into small, manageable steps
-- Focus on core functionality rather than advanced features
-- Include learning and practice tasks for skill development
+**Categories:**
+- Planning: Requirements, project plan
+- Learning: Tutorials, skill practice
+- Setup: Tools, project structure
+- Development: Build features step-by-step
+- Testing: Manual testing, bug fixes
+- Final: Documentation, demo prep
 
-Each task should include:
-- title (string): Simple, clear task name (e.g., "Create Basic Login Page")
-- description (string): Easy-to-understand description with simple steps
-- category (string): One of "Planning", "Learning", "Setup", "Development", "Testing", "Final"
-- priority (string): "High", "Medium", or "Low"
-- estimatedHours (number): Realistic hours for students (2-12 hours per task)
-- assignedTo (string): Team member name or "Team"
-- dayOffset (number): Days from start when due
-- dependencies (array of strings): Which tasks must be done first
-- deliverables (array of strings): What student will create/complete
-- skills_required (array of strings): Basic skills needed
-
-**STUDENT-FOCUSED GUIDELINES:**
-1. **Start with basics**: Planning, learning, and simple setup tasks
-2. **Use student language**: Avoid complex technical jargon
-3. **Small steps**: Each task should take max 1-2 days for students
-4. **Learning focus**: Include tasks to learn technologies step-by-step
-5. **Core features only**: Focus on main functionality, not advanced features
-6. **Simple testing**: Basic manual testing, not complex automated tests
-7. **Practical deliverables**: Working code, simple documentation, demo
-8. **Achievable timeline**: Realistic for student schedules and skill level
-
-**SIMPLE TASK CATEGORIES:**
-- **Planning**: Understanding requirements, creating project plan
-- **Learning**: Tutorials, practice with new technologies
-- **Setup**: Installing tools, creating basic project structure
-- **Development**: Building core features step by step
-- **Testing**: Simple manual testing and bug fixes
-- **Final**: Documentation, demo preparation, project completion
-
-**EXAMPLE STUDENT TASKS:**
-- "Watch Flutter Tutorial Videos" (Learning)
-- "Create Basic App Structure" (Setup)
-- "Build Simple Login Form" (Development)
-- "Test Login Functionality" (Testing)
-- "Write Simple README File" (Final)
-
-Return ONLY the JSON array for a STUDENT-FRIENDLY mini project:
-[{"title": "Create Project Plan", "description": "Write down what your app will do and list the main features", "category": "Planning", ...}]
+Return ONLY the JSON array:
 ''';
   }
 
@@ -780,5 +646,100 @@ Return ONLY the JSON array for a STUDENT-FRIENDLY mini project:
     
     // Single value
     return [value.toString().trim()];
+  }
+  
+  /// Helper method to truncate text to prevent token overflow
+  String _truncateText(String text, int maxLength) {
+    if (text.length <= maxLength) return text;
+    return '${text.substring(0, maxLength - 3)}...';
+  }
+  
+  /// Generate fallback roadmap when AI fails
+  List<Task> _generateFallbackRoadmap({
+    required String projectTitle,
+    required int durationInDays,
+    required DateTime startDate,
+    required DateTime endDate,
+    required String targetPlatform,
+    required List<String> teamMembers,
+  }) {
+    debugPrint('🔄 Generating fallback roadmap for $projectTitle');
+    
+    final now = DateTime.now();
+    final List<Task> tasks = [];
+    
+    // Create basic task templates based on platform
+    List<Map<String, dynamic>> taskTemplates;
+    
+    if (targetPlatform.toLowerCase().contains('app') || targetPlatform.toLowerCase().contains('mobile')) {
+      taskTemplates = [
+        {'title': 'Project Planning', 'description': 'Define requirements and create project plan', 'category': 'Planning', 'hours': 4, 'days': 1},
+        {'title': 'Setup Development Environment', 'description': 'Install Flutter/React Native and setup project', 'category': 'Setup', 'hours': 6, 'days': 3},
+        {'title': 'Learn Framework Basics', 'description': 'Complete tutorials and understand framework fundamentals', 'category': 'Learning', 'hours': 8, 'days': 7},
+        {'title': 'Create App Structure', 'description': 'Setup basic app navigation and folder structure', 'category': 'Development', 'hours': 6, 'days': 10},
+        {'title': 'Design UI Screens', 'description': 'Create wireframes and basic UI components', 'category': 'Development', 'hours': 8, 'days': 14},
+        {'title': 'Implement Core Features', 'description': 'Build main functionality step by step', 'category': 'Development', 'hours': 12, 'days': 21},
+        {'title': 'Add Data Storage', 'description': 'Implement database or local storage', 'category': 'Development', 'hours': 8, 'days': 28},
+        {'title': 'User Authentication', 'description': 'Add login/signup functionality if needed', 'category': 'Development', 'hours': 10, 'days': 35},
+        {'title': 'Test Core Features', 'description': 'Manual testing of all implemented features', 'category': 'Testing', 'hours': 6, 'days': 42},
+        {'title': 'Fix Bugs and Issues', 'description': 'Resolve any bugs found during testing', 'category': 'Testing', 'hours': 8, 'days': 49},
+        {'title': 'Polish UI/UX', 'description': 'Improve design and user experience', 'category': 'Development', 'hours': 6, 'days': 56},
+        {'title': 'Create Documentation', 'description': 'Write README and basic documentation', 'category': 'Final', 'hours': 4, 'days': 63},
+        {'title': 'Prepare Demo', 'description': 'Create demo presentation and test run', 'category': 'Final', 'hours': 4, 'days': 70},
+        {'title': 'Final Testing', 'description': 'Complete final testing and validation', 'category': 'Testing', 'hours': 6, 'days': 77},
+      ];
+    } else {
+      // Web project templates
+      taskTemplates = [
+        {'title': 'Project Planning', 'description': 'Define requirements and create project plan', 'category': 'Planning', 'hours': 4, 'days': 1},
+        {'title': 'Setup Development Environment', 'description': 'Install Node.js/React and setup project structure', 'category': 'Setup', 'hours': 6, 'days': 3},
+        {'title': 'Learn Web Technologies', 'description': 'Study HTML, CSS, JavaScript fundamentals', 'category': 'Learning', 'hours': 8, 'days': 7},
+        {'title': 'Create Project Structure', 'description': 'Setup basic web app structure and routing', 'category': 'Development', 'hours': 6, 'days': 10},
+        {'title': 'Design Homepage', 'description': 'Create main landing page and navigation', 'category': 'Development', 'hours': 8, 'days': 14},
+        {'title': 'Implement Core Pages', 'description': 'Build main functionality pages', 'category': 'Development', 'hours': 12, 'days': 21},
+        {'title': 'Add Database Integration', 'description': 'Connect to database and implement CRUD operations', 'category': 'Development', 'hours': 10, 'days': 28},
+        {'title': 'User Management', 'description': 'Add user registration and login features', 'category': 'Development', 'hours': 8, 'days': 35},
+        {'title': 'Test Website Features', 'description': 'Manual testing across different browsers', 'category': 'Testing', 'hours': 6, 'days': 42},
+        {'title': 'Fix Issues and Bugs', 'description': 'Resolve any issues found during testing', 'category': 'Testing', 'hours': 8, 'days': 49},
+        {'title': 'Improve Styling', 'description': 'Polish CSS and make responsive design', 'category': 'Development', 'hours': 6, 'days': 56},
+        {'title': 'Write Documentation', 'description': 'Create user guide and technical docs', 'category': 'Final', 'hours': 4, 'days': 63},
+        {'title': 'Deploy Website', 'description': 'Deploy to hosting platform and test live', 'category': 'Final', 'hours': 6, 'days': 70},
+      ];
+    }
+    
+    // Adjust timeline based on actual duration
+    final scaleFactor = durationInDays / 77.0; // 77 is the base timeline
+    
+    for (int i = 0; i < taskTemplates.length; i++) {
+      final template = taskTemplates[i];
+      final adjustedDays = ((template['days'] as int) * scaleFactor).round();
+      final dueDate = startDate.add(Duration(days: adjustedDays));
+      
+      // Ensure due date doesn't exceed end date
+      final finalDueDate = dueDate.isAfter(endDate) ? endDate : dueDate;
+      
+      final task = Task(
+        id: 'fallback_task_${now.millisecondsSinceEpoch}_$i',
+        title: template['title'] as String,
+        description: template['description'] as String,
+        dueDate: finalDueDate,
+        priority: i < 3 ? 'High' : (i < 8 ? 'Medium' : 'Low'),
+        category: template['category'] as String,
+        assignedTo: teamMembers.isNotEmpty ? [teamMembers.first] : ['Team'],
+        estimatedHours: template['hours'] as int,
+        dependencies: i > 0 ? [tasks[i-1].id] : [],
+        metadata: {
+          'fallback': true,
+          'platform': targetPlatform,
+        },
+        createdAt: now,
+        updatedAt: now,
+      );
+      
+      tasks.add(task);
+    }
+    
+    debugPrint('✅ Generated ${tasks.length} fallback roadmap tasks');
+    return tasks.take(14).toList(); // Limit to 14 tasks
   }
 }

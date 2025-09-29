@@ -55,18 +55,18 @@ class ThemeHelper {
   }
   
   static Color getTextSecondary(BuildContext context) {
-    return Theme.of(context).colorScheme.onSurface.withOpacity(0.7);
+    return Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
   }
   
   static Color getTextTertiary(BuildContext context) {
-    return Theme.of(context).colorScheme.onSurface.withOpacity(0.5);
+    return Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5);
   }
   
   // Border and outline colors
   static Color getBorderColor(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark 
-        ? Theme.of(context).colorScheme.onSurface.withOpacity(0.12)
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)
         : const Color(0xffe5e7eb);
   }
   
@@ -78,8 +78,8 @@ class ThemeHelper {
   static Color getShadowColor(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark 
-        ? Colors.black.withOpacity(0.3)
-        : Colors.black.withOpacity(0.06);
+        ? Colors.black.withValues(alpha: 0.3)
+        : Colors.black.withValues(alpha: 0.06);
   }
   
   // Card and container colors
@@ -122,7 +122,7 @@ class ThemeHelper {
     return LinearGradient(
       colors: [
         primaryColor,
-        primaryColor.withOpacity(0.8),
+        primaryColor.withValues(alpha: 0.8),
       ],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
@@ -134,7 +134,7 @@ class ThemeHelper {
     return LinearGradient(
       colors: [
         successColor,
-        successColor.withOpacity(0.8),
+        successColor.withValues(alpha: 0.8),
       ],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:minix/pages/topic_selection_page.dart';
 import 'package:minix/services/project_service.dart';
 
 class ProjectSpaceCreationPage extends StatefulWidget {
@@ -310,7 +309,7 @@ class _ProjectSpaceCreationPageState extends State<ProjectSpaceCreationPage> {
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 decoration: BoxDecoration(
                                   color: isSelected 
-                                      ? const Color(0xff7c3aed).withOpacity(0.1)
+                                      ? const Color(0xff7c3aed).withValues(alpha: 0.1)
                                       : Colors.grey.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
@@ -414,7 +413,7 @@ class _ProjectSpaceCreationPageState extends State<ProjectSpaceCreationPage> {
                           return Chip(
                             label: Text(member),
                             onDeleted: () => _removeTeamMember(index),
-                            backgroundColor: const Color(0xff059669).withOpacity(0.1),
+                            backgroundColor: const Color(0xff059669).withValues(alpha: 0.1),
                             labelStyle: GoogleFonts.poppins(
                               color: const Color(0xff059669),
                               fontSize: 12,

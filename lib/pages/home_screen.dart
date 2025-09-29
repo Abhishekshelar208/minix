@@ -4,14 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:minix/pages/splash_screen.dart';
 import 'package:minix/pages/project_space_creation_page.dart';
-import 'package:minix/pages/topic_selection_page.dart';
-import 'package:minix/pages/project_name_suggestions_page.dart';
-import 'package:minix/pages/project_roadmap_page.dart';
 import 'package:minix/pages/project_steps_page.dart';
 import 'package:minix/services/project_service.dart';
 import 'package:minix/models/project_roadmap.dart';
 import 'package:minix/models/task.dart';
-import 'package:minix/models/problem.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -62,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xff2563eb).withOpacity(0.3),
+            color: const Color(0xff2563eb).withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -81,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -118,14 +114,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       user?.email ?? 'No email',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                     ),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -158,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -173,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   'Joined ${_formatJoinDate(user?.metadata.creationTime)}',
                   style: GoogleFonts.poppins(
                     fontSize: 14,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
                 const Spacer(),
@@ -246,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -260,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xff7c3aed).withOpacity(0.1),
+                  color: const Color(0xff7c3aed).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -313,7 +309,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -327,7 +323,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xff059669).withOpacity(0.1),
+                  color: const Color(0xff059669).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -405,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -419,7 +415,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xff6b7280).withOpacity(0.1),
+                  color: const Color(0xff6b7280).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -488,7 +484,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -502,7 +498,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xff2563eb).withOpacity(0.1),
+                  color: const Color(0xff2563eb).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -581,7 +577,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -770,23 +766,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // Add a method to force refresh after a delay (for Firebase consistency)
   Future<void> _refreshAfterDelay() async {
-    print('⏳ Scheduling data refresh after delay...');
+    debugPrint('⏳ Scheduling data refresh after delay...');
     await Future.delayed(const Duration(milliseconds: 1000)); // Give Firebase time to sync
     if (mounted) {
-      print('🔄 Starting delayed data refresh...');
+      debugPrint('🔄 Starting delayed data refresh...');
       await _loadHomeData();
     }
   }
 
   // Public method to manually refresh data (can be called from other screens)
   Future<void> forceRefresh() async {
-    print('💪 Force refresh requested');
+    debugPrint('💪 Force refresh requested');
     await _loadHomeData();
   }
   
   // Refresh data while staying on current tab (for Projects tab refresh button)
   Future<void> _refreshProjectsData() async {
-    print('📁 Refreshing projects data without navigation');
+    debugPrint('📁 Refreshing projects data without navigation');
     await _loadHomeData();
     // Ensure we stay on the current tab after refresh
     if (_currentIndex != 1) {
@@ -865,7 +861,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xff2563eb).withOpacity(0.1),
+                    color: const Color(0xff2563eb).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
@@ -932,7 +928,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xff2563eb).withOpacity(0.3),
+            color: const Color(0xff2563eb).withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -946,7 +942,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -973,7 +969,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       'Create a workspace and get AI-powered guidance',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                     ),
                   ],
@@ -1176,7 +1172,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xff2563eb).withOpacity(0.3),
+            color: const Color(0xff2563eb).withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -1201,7 +1197,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   'Ready to build something amazing today?',
                   style: GoogleFonts.poppins(
                     fontSize: 16,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
               ],
@@ -1210,7 +1206,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -1265,7 +1261,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1276,7 +1272,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -1319,7 +1315,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 15,
             offset: const Offset(0, 6),
           ),
@@ -1333,7 +1329,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xff059669).withOpacity(0.1),
+                  color: const Color(0xff059669).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -1451,7 +1447,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: _getStepColor(space.currentStep).withOpacity(0.1),
+              color: _getStepColor(space.currentStep).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -1487,7 +1483,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: _getStepColor(space.currentStep).withOpacity(0.1),
+              color: _getStepColor(space.currentStep).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -1512,7 +1508,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 15,
             offset: const Offset(0, 6),
           ),
@@ -1526,7 +1522,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xff059669).withOpacity(0.1),
+                  color: const Color(0xff059669).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -1630,36 +1626,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       Map<String, int> projectStats = {'totalProjects': 0, 'completedProjects': 0, 'inProgress': 0};
       
       try {
-        print('🔄 Loading project spaces...');
+        debugPrint('🔄 Loading project spaces...');
         projectSpaces = await _projectService.getUserProjectSpaces();
-        print('✅ Loaded ${projectSpaces.length} project spaces');
+        debugPrint('✅ Loaded ${projectSpaces.length} project spaces');
       } catch (e) {
         // Firebase index error or no data - this is normal for new users
-        print('Info: No project spaces found (likely new user): $e');
+        debugPrint('Info: No project spaces found (likely new user): $e');
         projectSpaces = [];
       }
       
       try {
-        print('🔄 Loading current roadmap...');
+        debugPrint('🔄 Loading current roadmap...');
         currentRoadmap = await _projectService.getCurrentRoadmap();
         if (currentRoadmap != null) {
-          print('✅ Loaded roadmap with ${currentRoadmap.tasks.length} tasks');
+          debugPrint('✅ Loaded roadmap with ${currentRoadmap.tasks.length} tasks');
         } else {
-          print('ℹ️ No current roadmap found');
+          debugPrint('ℹ️ No current roadmap found');
         }
       } catch (e) {
         // No roadmap yet - normal for new users
-        print('Info: No current roadmap found: $e');
+        debugPrint('Info: No current roadmap found: $e');
         currentRoadmap = null;
       }
       
       try {
-        print('🔄 Loading project stats...');
+        debugPrint('🔄 Loading project stats...');
         projectStats = await _projectService.getProjectStats();
-        print('✅ Loaded stats: $projectStats');
+        debugPrint('✅ Loaded stats: $projectStats');
       } catch (e) {
         // No stats yet - normal for new users
-        print('Info: No project stats found: $e');
+        debugPrint('Info: No project stats found: $e');
         projectStats = {'totalProjects': 0, 'completedProjects': 0, 'inProgress': 0};
       }
 
@@ -1671,7 +1667,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       });
     } catch (e) {
       // Only show errors for unexpected issues, not missing data
-      print('❌ Unexpected error loading home data: $e');
+      debugPrint('❌ Unexpected error loading home data: $e');
       setState(() {
         _projectSpaces = [];
         _currentRoadmap = null;
@@ -1753,8 +1749,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     User? user = _auth.currentUser;
 
-    return WillPopScope(
-      onWillPop: () async => false, // Disable back navigation
+    return PopScope(
+      canPop: false, // Disable back navigation
       child: Scaffold(
         backgroundColor: const Color(0xfff8f9fa),
         appBar: AppBar(
@@ -1976,7 +1972,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xff2563eb).withOpacity(0.4),
+            color: const Color(0xff2563eb).withValues(alpha: 0.4),
             blurRadius: 25,
             offset: const Offset(0, 10),
           ),
@@ -1987,7 +1983,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Icon(
@@ -2012,7 +2008,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             'From idea to execution - let AI guide you through every step of your engineering project. Start with creating your project space and unlock:\n\n✨ AI-powered topic discovery\n🎯 Smart project naming\n📋 Automated roadmap generation\n🎯 Task tracking & team collaboration',
             style: GoogleFonts.poppins(
               fontSize: 14,
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha: 0.95),
               height: 1.6,
             ),
             textAlign: TextAlign.center,
@@ -2113,7 +2109,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),
@@ -2231,7 +2227,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: _getPriorityColor(task.priority).withOpacity(0.1),
+                color: _getPriorityColor(task.priority).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -2377,7 +2373,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 15,
             offset: const Offset(0, 4),
           ),
@@ -2390,7 +2386,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: _getStepColor(space.currentStep).withOpacity(0.05),
+              color: _getStepColor(space.currentStep).withValues(alpha: 0.05),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20),
                 topRight: Radius.circular(20),
@@ -2415,7 +2411,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: _getStepColor(space.currentStep).withOpacity(0.15),
+                        color: _getStepColor(space.currentStep).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -2566,7 +2562,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

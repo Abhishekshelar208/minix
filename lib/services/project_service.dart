@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:minix/models/task.dart';
@@ -13,6 +14,14 @@ class ProjectService {
   ProjectService({FirebaseDatabase? db, FirebaseAuth? auth})
       : _db = db ?? FirebaseDatabase.instance,
         _auth = auth ?? FirebaseAuth.instance;
+
+  /// Helper method to safely parse dynamic values to integers
+  int _parseTimestamp(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return 0;
+  }
 
   Future<String?> createDraftProject({required String problemId}) async {
     final uid = _auth.currentUser?.uid;
@@ -101,7 +110,7 @@ class ProjectService {
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
     });
     
-    print('✅ Project space created with owner email: $userEmail');
+    debugPrint('✅ Project space created with owner email: $userEmail');
     return ref.key;
   }
 
@@ -207,14 +216,14 @@ class ProjectService {
 
     return ProjectRoadmap(
       projectSpaceId: projectSpaceId,
-      startDate: DateTime.fromMillisecondsSinceEpoch(roadmap['startDate'] ?? 0),
-      endDate: DateTime.fromMillisecondsSinceEpoch(roadmap['endDate'] ?? 0),
+      startDate: DateTime.fromMillisecondsSinceEpoch(_parseTimestamp(roadmap['startDate'])),
+      endDate: DateTime.fromMillisecondsSinceEpoch(_parseTimestamp(roadmap['endDate'])),
       tasks: tasks,
       settings: roadmap['settings'] != null 
-          ? Map<String, dynamic>.from(roadmap['settings'])
+          ? Map<String, dynamic>.from(roadmap['settings'] as Map)
           : null,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(roadmap['createdAt'] ?? 0),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(roadmap['updatedAt'] ?? 0),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(_parseTimestamp(roadmap['createdAt'])),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(_parseTimestamp(roadmap['updatedAt'])),
     );
   }
 
@@ -439,4 +448,5 @@ class ProjectService {
       step: step,
     );
   }
+
 }

@@ -6,7 +6,6 @@ import 'package:minix/models/solution.dart';
 import 'package:minix/services/project_service.dart';
 import 'package:minix/services/solution_service.dart';
 import 'package:minix/pages/solution_details_page.dart';
-import 'package:minix/pages/project_roadmap_page.dart';
 import 'package:minix/pages/project_steps_page.dart';
 
 class ProjectSolutionPage extends StatefulWidget {
@@ -47,8 +46,8 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
   final _featureController = TextEditingController();
   final _techController = TextEditingController();
   
-  List<String> _customFeatures = [];
-  List<String> _customTechStack = [];
+  final List<String> _customFeatures = [];
+  final List<String> _customTechStack = [];
   bool _isSavingSolution = false;
 
   @override
@@ -110,8 +109,8 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
       
       final solutions = await _solutionService.generateSolutions(
         problem: widget.problem,
-        difficulty: difficulty,
-        targetPlatform: targetPlatform,
+        difficulty: difficulty.toString(),
+        targetPlatform: targetPlatform.toString(),
         teamSkills: teamSkills,
         solutionCount: 3,
       );
@@ -121,20 +120,24 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
         _showSolutions = true; // Show solutions after successful generation
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✨ Generated ${solutions.length} AI solution approaches!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✨ Generated ${solutions.length} AI solution approaches!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      print('❌ Error generating AI solutions: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('⚠️ Failed to generate AI solutions: ${e.toString()}'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      debugPrint('❌ Error generating AI solutions: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Failed to generate AI solutions: ${e.toString()}'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoadingAISolutions = false);
     }
@@ -148,7 +151,7 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
 
   void _viewSolutionDetails(ProjectSolution solution) {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (context) => SolutionDetailsPage(
           solution: solution,
           canEdit: solution.type == 'app_suggested', // Allow editing AI solutions
@@ -222,7 +225,7 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
         description: _descriptionController.text.trim(),
         keyFeatures: _customFeatures,
         techStack: _customTechStack,
-        difficulty: difficulty,
+        difficulty: difficulty.toString(),
       );
 
       setState(() {
@@ -278,25 +281,27 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
         // Navigate back to Project Steps page to show progress
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
+          MaterialPageRoute<void>(
             builder: (context) => ProjectStepsPage(
               projectSpaceId: widget.projectSpaceId,
-              teamName: _projectSpaceData?['teamName'] ?? 'Team',
+              teamName: (_projectSpaceData?['teamName']?.toString() ?? 'Team'),
               currentStep: 4, // Now at step 4 (Roadmap Generation)
-              yearOfStudy: _projectSpaceData?['yearOfStudy'] ?? 3,
-              targetPlatform: _projectSpaceData?['targetPlatform'] ?? 'App',
+              yearOfStudy: (_projectSpaceData?['yearOfStudy'] as int?) ?? 3,
+              targetPlatform: (_projectSpaceData?['targetPlatform']?.toString() ?? 'App'),
               teamSize: (_projectSpaceData?['teamMembers'] as List?)?.length ?? 1,
             ),
           ),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Failed to save solution: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Failed to save solution: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSavingSolution = false);
     }
@@ -400,7 +405,7 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
                       color: Colors.white,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 10,
                           offset: const Offset(0, -2),
                         ),
@@ -939,7 +944,7 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
     );
   }
 
-  Widget _buildChipsList(List<String> items, Function(int) onRemove, String emptyText) {
+  Widget _buildChipsList(List<String> items, void Function(int) onRemove, String emptyText) {
     if (items.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(12),
@@ -1218,7 +1223,7 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 10,
                 offset: const Offset(0, -2),
               ),
@@ -1296,9 +1301,9 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         text,

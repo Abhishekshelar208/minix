@@ -640,7 +640,7 @@ class _SolutionDetailsPageState extends State<SolutionDetailsPage> {
           decoration: BoxDecoration(
             color: backgroundColor,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: textColor.withOpacity(0.2)),
+            border: Border.all(color: textColor.withValues(alpha: 0.2)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -663,7 +663,7 @@ class _SolutionDetailsPageState extends State<SolutionDetailsPage> {
                   child: Icon(
                     Icons.close,
                     size: 16,
-                    color: textColor.withOpacity(0.7),
+                    color: textColor.withValues(alpha: 0.7),
                   ),
                 ),
               ],

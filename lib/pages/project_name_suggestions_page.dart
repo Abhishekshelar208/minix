@@ -51,7 +51,7 @@ class _ProjectNameSuggestionsPageState extends State<ProjectNameSuggestionsPage>
     });
 
     try {
-      print('🚀 Generating project names for: ${widget.problem.title}');
+      debugPrint('🚀 Generating project names for: ${widget.problem.title}');
       
       final names = await _generateNamesUsingGemini();
       
@@ -68,7 +68,7 @@ class _ProjectNameSuggestionsPageState extends State<ProjectNameSuggestionsPage>
         );
       }
     } catch (e) {
-      print('❌ Error generating project names: $e');
+      debugPrint('❌ Error generating project names: $e');
       
       // Fallback to static names if AI fails
       final fallbackNames = _generateFallbackNames();
@@ -132,7 +132,7 @@ Return ONLY a JSON array of strings, no other text:
           .timeout(const Duration(minutes: 1));
 
       final text = response.text ?? '';
-      print('📥 Raw name generation response: $text');
+      debugPrint('📥 Raw name generation response: $text');
 
       if (text.isEmpty) {
         throw StateError('Empty response from AI');
@@ -144,7 +144,8 @@ Return ONLY a JSON array of strings, no other text:
         throw StateError('No valid JSON found in response');
       }
 
-      final List<dynamic> namesList = jsonDecode(jsonString);
+      final dynamic decodedJson = jsonDecode(jsonString);
+      final List<dynamic> namesList = (decodedJson is List) ? decodedJson : <dynamic>[];
       final names = namesList
           .map((e) => e.toString().trim())
           .where((name) => name.isNotEmpty)
@@ -157,7 +158,7 @@ Return ONLY a JSON array of strings, no other text:
 
       return names;
     } catch (e) {
-      print('❌ Gemini name generation failed: $e');
+      debugPrint('❌ Gemini name generation failed: $e');
       rethrow;
     }
   }
@@ -254,7 +255,7 @@ Return ONLY a JSON array of strings, no other text:
       
       return '[]';
     } catch (e) {
-      print('Error extracting JSON: $e');
+      debugPrint('Error extracting JSON: $e');
       return '[]';
     }
   }
@@ -281,7 +282,7 @@ Return ONLY a JSON array of strings, no other text:
     });
 
     try {
-      print('💾 Saving project name: $name for project: ${widget.projectId}');
+      debugPrint('💾 Saving project name: $name for project: ${widget.projectId}');
       
       // Update project space with the selected name
       await _projectService.updateProjectSpaceStep(
@@ -304,7 +305,7 @@ Return ONLY a JSON array of strings, no other text:
         );
       } catch (e) {
         // Draft project might not exist, which is fine
-        print('Note: Draft project not found or couldn\'t be updated: $e');
+        debugPrint('Note: Draft project not found or couldn\'t be updated: $e');
       }
 
       if (mounted) {
@@ -324,7 +325,7 @@ Return ONLY a JSON array of strings, no other text:
         }
       }
     } catch (e) {
-      print('❌ Error saving project name: $e');
+      debugPrint('❌ Error saving project name: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -510,7 +511,7 @@ Return ONLY a JSON array of strings, no other text:
               margin: const EdgeInsets.only(bottom: 12),
               child: Card(
                 elevation: isSelected ? 8 : 2,
-                shadowColor: isSelected ? const Color(0xff2563eb).withOpacity(0.3) : null,
+                shadowColor: isSelected ? const Color(0xff2563eb).withValues(alpha: 0.3) : null,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                   side: BorderSide(
@@ -714,9 +715,9 @@ Return ONLY a JSON array of strings, no other text:
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xff059669).withOpacity(0.1),
+                color: const Color(0xff059669).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xff059669).withOpacity(0.3)),
+                border: Border.all(color: const Color(0xff059669).withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -749,9 +750,9 @@ Return ONLY a JSON array of strings, no other text:
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         text,

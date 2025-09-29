@@ -21,16 +21,18 @@ class CodeModule {
 
   factory CodeModule.fromMap(Map<String, dynamic> map) {
     return CodeModule(
-      id: map['id'] ?? '',
-      title: map['title'] ?? '',
-      description: map['description'] ?? '',
+      id: ((map['id'] ?? '').toString()).toString(),
+      title: ((map['title'] ?? '').toString()).toString(),
+      description: ((map['description'] ?? '').toString()).toString(),
       steps: (map['steps'] as List<dynamic>?)
-          ?.map((step) => CodeStep.fromMap(Map<String, dynamic>.from(step)))
+          ?.map((step) => CodeStep.fromMap((step as Map<dynamic, dynamic>).map(
+            (key, value) => MapEntry(key.toString(), value),
+          )))
           .toList() ?? [],
-      category: map['category'] ?? 'core',
-      order: map['order'] ?? 0,
-      dependencies: List<String>.from(map['dependencies'] ?? []),
-      isCompleted: map['isCompleted'] ?? false,
+      category: (map['category'] ?? 'core').toString(),
+      order: (map['order'] as num? ?? 0).toInt(),
+      dependencies: (map['dependencies'] as List<dynamic>?)?.cast<String>() ?? <String>[],
+      isCompleted: (map['isCompleted'] as bool?) ?? false,
     );
   }
 
@@ -95,17 +97,19 @@ class CodeStep {
 
   factory CodeStep.fromMap(Map<String, dynamic> map) {
     return CodeStep(
-      id: map['id'] ?? '',
-      title: map['title'] ?? '',
-      description: map['description'] ?? '',
-      prompt: CodePrompt.fromMap(Map<String, dynamic>.from(map['prompt'] ?? {})),
-      filePath: map['filePath'],
-      generatedCode: map['generatedCode'],
-      isCompleted: map['isCompleted'] ?? false,
+      id: ((map['id'] ?? '').toString()).toString(),
+      title: ((map['title'] ?? '').toString()).toString(),
+      description: ((map['description'] ?? '').toString()).toString(),
+      prompt: CodePrompt.fromMap((map['prompt'] as Map<dynamic, dynamic>?)?.map(
+        (key, value) => MapEntry(key.toString(), value),
+      ) ?? <String, dynamic>{}),
+      filePath: map['filePath']?.toString(),
+      generatedCode: map['generatedCode']?.toString(),
+      isCompleted: (map['isCompleted'] as bool?) ?? false,
       completedAt: map['completedAt'] != null 
-          ? DateTime.fromMillisecondsSinceEpoch(map['completedAt'])
+          ? DateTime.fromMillisecondsSinceEpoch((map['completedAt'] as num).toInt())
           : null,
-      userFeedback: map['userFeedback'],
+      userFeedback: map['userFeedback']?.toString(),
     );
   }
 
@@ -167,14 +171,16 @@ class CodePrompt {
 
   factory CodePrompt.fromMap(Map<String, dynamic> map) {
     return CodePrompt(
-      instruction: map['instruction'] ?? '',
-      context: map['context'] ?? '',
-      requirements: List<String>.from(map['requirements'] ?? []),
+      instruction: ((map['instruction'] ?? '').toString()).toString(),
+      context: ((map['context'] ?? '').toString()).toString(),
+      requirements: (map['requirements'] as List<dynamic>?)?.cast<String>() ?? <String>[],
       examples: (map['examples'] as List<dynamic>?)
-          ?.map((example) => CodeExample.fromMap(Map<String, dynamic>.from(example)))
+          ?.map((example) => CodeExample.fromMap((example as Map<dynamic, dynamic>).map(
+            (key, value) => MapEntry(key.toString(), value),
+          )))
           .toList() ?? [],
-      expectedOutput: map['expectedOutput'] ?? '',
-      hints: List<String>.from(map['hints'] ?? []),
+      expectedOutput: ((map['expectedOutput'] ?? '').toString()).toString(),
+      hints: (map['hints'] as List<dynamic>?)?.cast<String>() ?? <String>[],
     );
   }
 
@@ -203,9 +209,9 @@ class CodeExample {
 
   factory CodeExample.fromMap(Map<String, dynamic> map) {
     return CodeExample(
-      title: map['title'] ?? '',
-      code: map['code'] ?? '',
-      explanation: map['explanation'] ?? '',
+      title: ((map['title'] ?? '').toString()).toString(),
+      code: ((map['code'] ?? '').toString()).toString(),
+      explanation: ((map['explanation'] ?? '').toString()).toString(),
     );
   }
 
@@ -245,19 +251,21 @@ class CodeGenerationProject {
 
   factory CodeGenerationProject.fromMap(Map<String, dynamic> map) {
     return CodeGenerationProject(
-      id: map['id'] ?? '',
-      projectSpaceId: map['projectSpaceId'] ?? '',
-      projectName: map['projectName'] ?? '',
-      targetPlatform: map['targetPlatform'] ?? '',
+      id: ((map['id'] ?? '').toString()).toString(),
+      projectSpaceId: ((map['projectSpaceId'] ?? '').toString()).toString(),
+      projectName: ((map['projectName'] ?? '').toString()).toString(),
+      targetPlatform: ((map['targetPlatform'] ?? '').toString()).toString(),
       modules: (map['modules'] as List<dynamic>?)
-          ?.map((module) => CodeModule.fromMap(Map<String, dynamic>.from(module)))
+          ?.map((module) => CodeModule.fromMap((module as Map<dynamic, dynamic>).map(
+            (key, value) => MapEntry(key.toString(), value),
+          )))
           .toList() ?? [],
-      currentModuleIndex: map['currentModuleIndex'] ?? 0,
-      currentStepIndex: map['currentStepIndex'] ?? 0,
-      isCompleted: map['isCompleted'] ?? false,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt']),
+      currentModuleIndex: (map['currentModuleIndex'] as num? ?? 0).toInt(),
+      currentStepIndex: (map['currentStepIndex'] as num? ?? 0).toInt(),
+      isCompleted: (map['isCompleted'] as bool?) ?? false,
+      createdAt: DateTime.fromMillisecondsSinceEpoch((map['createdAt'] as num).toInt()),
       completedAt: map['completedAt'] != null 
-          ? DateTime.fromMillisecondsSinceEpoch(map['completedAt'])
+          ? DateTime.fromMillisecondsSinceEpoch((map['completedAt'] as num).toInt())
           : null,
     );
   }

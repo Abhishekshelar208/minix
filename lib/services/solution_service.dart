@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:minix/models/solution.dart';
 import 'package:minix/models/problem.dart';
@@ -20,7 +21,7 @@ class SolutionService {
       throw StateError('Missing GEMINI_API_KEY. Pass via --dart-define=GEMINI_API_KEY=...');
     }
     
-    print('🚀 Generating $solutionCount detailed solutions for: ${problem.title}');
+    debugPrint('🚀 Generating $solutionCount detailed solutions for: ${problem.title}');
     
     try {
       // Build comprehensive problem context
@@ -157,24 +158,24 @@ $problemContext
       
       for (int attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-          print('🔄 Solution generation attempt $attempt/$maxAttempts');
+          debugPrint('🔄 Solution generation attempt $attempt/$maxAttempts');
           final response = await model
               .generateContent([Content.text(prompt)])
               .timeout(const Duration(minutes: 3)); // 3 minutes for complex solutions
 
           text = response.text ?? '';
-          print('📥 Raw solution response (${text.length} chars): ${text.substring(0, text.length.clamp(0, 300))}...');
+          debugPrint('📥 Raw solution response (${text.length} chars): ${text.substring(0, text.length.clamp(0, 300))}...');
 
           if (text.isNotEmpty) break; // Success
           
           if (attempt < maxAttempts) {
-            print('⚠️ Empty solution response, retrying...');
-            await Future.delayed(Duration(seconds: attempt * 2));
+            debugPrint('⚠️ Empty solution response, retrying...');
+            await Future<void>.delayed(Duration(seconds: attempt * 2));
           }
         } catch (e) {
-          print('⚠️ Solution attempt $attempt failed: $e');
+          debugPrint('⚠️ Solution attempt $attempt failed: $e');
           if (attempt == maxAttempts) rethrow;
-          await Future.delayed(Duration(seconds: attempt * 2));
+          await Future<void>.delayed(Duration(seconds: attempt * 2));
         }
       }
 
@@ -184,14 +185,14 @@ $problemContext
 
       // Parse JSON from text using the same pattern as GeminiProblemsService
       final jsonString = _extractJsonArray(text);
-      print('🔍 Extracted solution JSON: ${jsonString.substring(0, jsonString.length.clamp(0, 500))}...');
+      debugPrint('🔍 Extracted solution JSON: ${jsonString.substring(0, jsonString.length.clamp(0, 500))}...');
       
       if (jsonString.isEmpty || jsonString == '[]') {
         throw StateError('No valid JSON found in solution response. Raw text: ${text.substring(0, 500)}...');
       }
 
       final List<dynamic> solutionsJson = jsonDecode(jsonString) as List<dynamic>;
-      print('✅ Parsed ${solutionsJson.length} solution items from JSON');
+      debugPrint('✅ Parsed ${solutionsJson.length} solution items from JSON');
 
       // Convert to ProjectSolution objects
       final solutions = <ProjectSolution>[];
@@ -199,36 +200,37 @@ $problemContext
         final solutionData = solutionsJson[i];
         
         solutions.add(ProjectSolution(
-          id: solutionData['id'] ?? 'sol_${i + 1}',
+          id: (solutionData['id'] as String?) ?? 'sol_${i + 1}',
           type: 'app_suggested',
-          title: solutionData['title'] ?? 'Solution ${i + 1}',
-          description: solutionData['description'] ?? '',
-          detailedDescription: solutionData['detailedDescription'],
-          keyFeatures: List<String>.from(solutionData['keyFeatures'] ?? []),
-          techStack: List<String>.from(solutionData['techStack'] ?? []),
+          title: (solutionData['title'] as String?) ?? 'Solution ${i + 1}',
+          description: (solutionData['description'] as String?) ?? '',
+          detailedDescription: solutionData['detailedDescription'] as String?,
+          keyFeatures: _parseStringList(solutionData['keyFeatures']),
+          techStack: _parseStringList(solutionData['techStack']),
           implementationSteps: solutionData['implementationSteps'] != null 
-              ? List<String>.from(solutionData['implementationSteps']) : null,
+              ? _parseStringList(solutionData['implementationSteps']) : null,
           realLifeExamples: solutionData['realLifeExamples'] != null 
-              ? List<String>.from(solutionData['realLifeExamples']) : null,
+              ? _parseStringList(solutionData['realLifeExamples']) : null,
           challenges: solutionData['challenges'] != null 
-              ? List<String>.from(solutionData['challenges']) : null,
+              ? _parseStringList(solutionData['challenges']) : null,
           benefits: solutionData['benefits'] != null 
-              ? List<String>.from(solutionData['benefits']) : null,
+              ? _parseStringList(solutionData['benefits']) : null,
           learningOutcomes: solutionData['learningOutcomes'] != null 
-              ? List<String>.from(solutionData['learningOutcomes']) : null,
+              ? _parseStringList(solutionData['learningOutcomes']) : null,
           timeline: solutionData['timeline'] != null 
-              ? Map<String, dynamic>.from(solutionData['timeline']) : null,
+              ? Map<String, dynamic>.from(solutionData['timeline'] as Map) : null,
           difficulty: difficulty,
-          architecture: Map<String, dynamic>.from(solutionData['architecture'] ?? {}),
+          architecture: solutionData['architecture'] != null 
+              ? Map<String, dynamic>.from(solutionData['architecture'] as Map) : {},
           createdAt: DateTime.now(),
         ));
       }
 
-      print('🎉 Successfully generated ${solutions.length} detailed AI solutions');
+      debugPrint('🎉 Successfully generated ${solutions.length} detailed AI solutions');
       return solutions;
 
     } catch (e) {
-      print('❌ Error generating solutions: $e');
+      debugPrint('❌ Error generating solutions: $e');
       
       // Return fallback solutions based on problem domain
       return _generateFallbackSolutions(
@@ -330,6 +332,15 @@ $problemContext
     );
   }
   
+  /// Helper method to safely parse string lists from dynamic values
+  List<String> _parseStringList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) {
+      return value.map((item) => item?.toString() ?? '').toList();
+    }
+    return [];
+  }
+
   /// Extract JSON array from response text (same pattern as GeminiProblemsService)
   String _extractJsonArray(String text) {
     // Remove markdown code blocks

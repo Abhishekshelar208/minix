@@ -48,7 +48,7 @@ class ProjectSolution {
       'keyFeatures': keyFeatures,
       'techStack': techStack,
       'difficulty': difficulty,
-      'architecture': architecture,
+      'architecture': _sanitizeMap(architecture),
       'createdAt': createdAt.toIso8601String(),
       'isSelected': isSelected,
       'implementationSteps': implementationSteps,
@@ -56,36 +56,95 @@ class ProjectSolution {
       'challenges': challenges,
       'benefits': benefits,
       'detailedDescription': detailedDescription,
-      'timeline': timeline,
+      'timeline': timeline != null ? _sanitizeMap(timeline!) : null,
       'learningOutcomes': learningOutcomes,
     };
   }
 
+  /// Sanitize map keys to be Firebase-compatible
+  /// Firebase keys cannot contain: . # $ / [ ] 
+  Map<String, dynamic> _sanitizeMap(Map<String, dynamic> map) {
+    final sanitized = <String, dynamic>{};
+    for (final entry in map.entries) {
+      // Replace invalid characters with underscores
+      String sanitizedKey = entry.key
+          .replaceAll('.', '_')
+          .replaceAll('#', '_')
+          .replaceAll(r'$', '_')
+          .replaceAll('/', '_')
+          .replaceAll('[', '_')
+          .replaceAll(']', '_')
+          .replaceAll('(', '_')
+          .replaceAll(')', '_')
+          .replaceAll('!', '_')
+          .replaceAll('?', '_')
+          .replaceAll('@', '_')
+          .replaceAll('%', '_')
+          .replaceAll('^', '_')
+          .replaceAll('&', '_')
+          .replaceAll('*', '_')
+          .replaceAll('+', '_')
+          .replaceAll('=', '_')
+          .replaceAll('|', '_')
+          .replaceAll('\\', '_')
+          .replaceAll('"', '_')
+          .replaceAll("'", '_')
+          .replaceAll('<', '_')
+          .replaceAll('>', '_')
+          .replaceAll(',', '_')
+          .replaceAll(';', '_')
+          .replaceAll(':', '_')
+          .trim();
+      
+      // Ensure key doesn't start with underscore (Firebase requirement)
+      while (sanitizedKey.startsWith('_')) {
+        sanitizedKey = sanitizedKey.substring(1);
+      }
+      
+      // Ensure key is not empty
+      if (sanitizedKey.isEmpty) {
+        sanitizedKey = 'key_${map.keys.toList().indexOf(entry.key)}';
+      }
+      
+      // Recursively sanitize nested maps
+      if (entry.value is Map<String, dynamic>) {
+        sanitized[sanitizedKey] = _sanitizeMap(entry.value as Map<String, dynamic>);
+      } else {
+        sanitized[sanitizedKey] = entry.value;
+      }
+    }
+    return sanitized;
+  }
+
   factory ProjectSolution.fromMap(Map<String, dynamic> map) {
     return ProjectSolution(
-      id: map['id'] ?? '',
-      type: map['type'] ?? 'custom',
-      title: map['title'] ?? '',
-      description: map['description'] ?? '',
-      keyFeatures: List<String>.from(map['keyFeatures'] ?? []),
-      techStack: List<String>.from(map['techStack'] ?? []),
-      difficulty: map['difficulty'] ?? 'Intermediate',
-      architecture: Map<String, dynamic>.from(map['architecture'] ?? {}),
-      createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
-      isSelected: map['isSelected'] ?? false,
+      id: (map['id'] ?? '').toString(),
+      type: (map['type'] ?? 'custom').toString(),
+      title: (map['title'] ?? '').toString(),
+      description: (map['description'] ?? '').toString(),
+      keyFeatures: (map['keyFeatures'] as List<dynamic>?)?.cast<String>() ?? <String>[],
+      techStack: (map['techStack'] as List<dynamic>?)?.cast<String>() ?? <String>[],
+      difficulty: (map['difficulty'] ?? 'Intermediate').toString(),
+      architecture: (map['architecture'] as Map<dynamic, dynamic>?)?.map(
+        (key, value) => MapEntry(key.toString(), value),
+      ) ?? <String, dynamic>{},
+      createdAt: DateTime.tryParse((map['createdAt'] ?? '').toString()) ?? DateTime.now(),
+      isSelected: (map['isSelected'] as bool?) ?? false,
       implementationSteps: map['implementationSteps'] != null 
-          ? List<String>.from(map['implementationSteps']) : null,
+          ? (map['implementationSteps'] as List<dynamic>?)?.cast<String>() : null,
       realLifeExamples: map['realLifeExamples'] != null 
-          ? List<String>.from(map['realLifeExamples']) : null,
+          ? (map['realLifeExamples'] as List<dynamic>?)?.cast<String>() : null,
       challenges: map['challenges'] != null 
-          ? List<String>.from(map['challenges']) : null,
+          ? (map['challenges'] as List<dynamic>?)?.cast<String>() : null,
       benefits: map['benefits'] != null 
-          ? List<String>.from(map['benefits']) : null,
-      detailedDescription: map['detailedDescription'],
+          ? (map['benefits'] as List<dynamic>?)?.cast<String>() : null,
+      detailedDescription: map['detailedDescription']?.toString(),
       timeline: map['timeline'] != null 
-          ? Map<String, dynamic>.from(map['timeline']) : null,
+          ? (map['timeline'] as Map<dynamic, dynamic>?)?.map(
+            (key, value) => MapEntry(key.toString(), value),
+          ) : null,
       learningOutcomes: map['learningOutcomes'] != null 
-          ? List<String>.from(map['learningOutcomes']) : null,
+          ? (map['learningOutcomes'] as List<dynamic>?)?.cast<String>() : null,
     );
   }
 
@@ -157,11 +216,13 @@ class SolutionArchitecture {
 
   factory SolutionArchitecture.fromMap(Map<String, dynamic> map) {
     return SolutionArchitecture(
-      frontend: map['frontend'] ?? '',
-      backend: map['backend'] ?? '',
-      database: map['database'] ?? '',
-      apis: List<String>.from(map['apis'] ?? []),
-      deployment: Map<String, String>.from(map['deployment'] ?? {}),
+      frontend: (map['frontend'] ?? '').toString(),
+      backend: (map['backend'] ?? '').toString(),
+      database: (map['database'] ?? '').toString(),
+      apis: (map['apis'] as List<dynamic>?)?.cast<String>() ?? <String>[],
+      deployment: (map['deployment'] as Map<dynamic, dynamic>?)?.map(
+        (key, value) => MapEntry(key.toString(), value.toString()),
+      ) ?? <String, String>{},
     );
   }
 }

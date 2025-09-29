@@ -38,22 +38,22 @@ class Task {
       id: id,
       title: map['title']?.toString() ?? '',
       description: map['description']?.toString() ?? '',
-      dueDate: DateTime.fromMillisecondsSinceEpoch(map['dueDate'] ?? 0),
+      dueDate: DateTime.fromMillisecondsSinceEpoch((map['dueDate'] as num? ?? 0).toInt()),
       priority: map['priority']?.toString() ?? 'Medium',
       category: map['category']?.toString() ?? 'Development',
       assignedTo: _toStringList(map['assignedTo']) ?? [],
-      estimatedHours: map['estimatedHours'] ?? 0,
-      isCompleted: map['isCompleted'] ?? false,
+      estimatedHours: (map['estimatedHours'] as num? ?? 0).toInt(),
+      isCompleted: (map['isCompleted'] as bool?) ?? false,
       completedAt: map['completedAt'] != null 
-          ? DateTime.fromMillisecondsSinceEpoch(map['completedAt'])
+          ? DateTime.fromMillisecondsSinceEpoch((map['completedAt'] as num).toInt())
           : null,
       completedBy: map['completedBy']?.toString(),
       dependencies: _toStringList(map['dependencies']) ?? [],
       metadata: map['metadata'] != null 
-          ? Map<String, dynamic>.from(map['metadata'])
+          ? Map<String, dynamic>.from(map['metadata'] as Map)
           : null,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] ?? 0),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] ?? 0),
+      createdAt: DateTime.fromMillisecondsSinceEpoch((map['createdAt'] as num? ?? 0).toInt()),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch((map['updatedAt'] as num? ?? 0).toInt()),
     );
   }
 

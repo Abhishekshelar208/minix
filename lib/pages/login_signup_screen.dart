@@ -3,7 +3,6 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:minix/pages/home_screen.dart';
 
 class LoginSignupScreen extends StatefulWidget {
@@ -50,65 +49,65 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   }
   
   Future<void> _handleProfileSubmit() async {
-    print('🔄 Profile submit started');
-    print('📝 Name: ${_nameController.text.trim()}');
-    print('🏫 Branch: $_selectedBranch');
-    print('📅 Year: $_selectedYear');
+    debugPrint('🔄 Profile submit started');
+    debugPrint('📝 Name: ${_nameController.text.trim()}');
+    debugPrint('🏫 Branch: $_selectedBranch');
+    debugPrint('📅 Year: $_selectedYear');
     
     if (!_formKey.currentState!.validate()) {
-      print('❌ Form validation failed');
+      debugPrint('❌ Form validation failed');
       return;
     }
     
     if (_selectedBranch == null || _selectedYear == null) {
-      print('❌ Missing branch or year');
+      debugPrint('❌ Missing branch or year');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select both branch and year')),
       );
       return;
     }
     
-    print('✅ Profile form valid, proceeding with Google sign-in');
+    debugPrint('✅ Profile form valid, proceeding with Google sign-in');
     // Now proceed with Google sign-in
     await _handleGoogleSignIn();
   }
   
   Future<void> _handleGoogleSignIn() async {
     try {
-      print('🚀 Starting Google sign-in');
+      debugPrint('🚀 Starting Google sign-in');
       setState(() => _isLoading = true);
 
       UserCredential userCredential;
 
       if (kIsWeb) {
-        print('🌍 Using web Google sign-in');
+        debugPrint('🌍 Using web Google sign-in');
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
         userCredential = await _auth.signInWithPopup(googleProvider);
       } else {
-        print('📱 Using mobile Google sign-in');
+        debugPrint('📱 Using mobile Google sign-in');
         // Use FirebaseAuth's native provider flow to avoid google_sign_in Pigeon issues
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
         userCredential = await _auth.signInWithProvider(googleProvider);
       }
 
       User? user = userCredential.user;
-      print('👤 Google user: ${user?.email}');
+      debugPrint('👤 Google user: ${user?.email}');
       
       if (user != null) {
-        print('💾 Saving user profile to database...');
+        debugPrint('💾 Saving user profile to database...');
         await _saveUserWithProfile(user);
         
         if (!mounted) return;
-        print('🏠 Navigating to home screen');
+        debugPrint('🏠 Navigating to home screen');
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
       } else {
-        print('❌ Google sign-in returned null user');
+        debugPrint('❌ Google sign-in returned null user');
       }
     } catch (e) {
-      print('❌ Google sign-in error: $e');
+      debugPrint('❌ Google sign-in error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Google sign-in error: $e")),
@@ -120,24 +119,24 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
   Future<void> _saveUserWithProfile(User user) async {
     try {
-      print('💾 Starting database save process');
-      print('📧 User email: ${user.email}');
-      print('📝 Form data - Name: ${_nameController.text.trim()}, Branch: $_selectedBranch, Year: $_selectedYear');
+      debugPrint('💾 Starting database save process');
+      debugPrint('📧 User email: ${user.email}');
+      debugPrint('📝 Form data - Name: ${_nameController.text.trim()}, Branch: $_selectedBranch, Year: $_selectedYear');
       
       final dbRef = FirebaseDatabase.instance.ref().child("MiniProjectHelperUsers");
       final email = user.email ?? "";
       
       if (email.isEmpty) {
-        print('❌ Email is empty, cannot save user');
+        debugPrint('❌ Email is empty, cannot save user');
         return;
       }
 
-      print('🔍 Checking if user already exists...');
+      debugPrint('🔍 Checking if user already exists...');
       final snapshot = await dbRef.orderByChild("EmailID").equalTo(email).once();
-      print('📊 Database query result: ${snapshot.snapshot.value}');
+      debugPrint('📊 Database query result: ${snapshot.snapshot.value}');
 
       if (snapshot.snapshot.value == null) {
-        print('🆕 User is new, creating database entry...');
+        debugPrint('🆕 User is new, creating database entry...');
         final newEntryRef = dbRef.push();
         
         final userData = {
@@ -150,9 +149,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           "JoinDate": DateTime.now().millisecondsSinceEpoch,
         };
         
-        print('📦 Saving user data: $userData');
+        debugPrint('📦 Saving user data: $userData');
         await newEntryRef.set(userData);
-        print('✅ User successfully saved to database!');
+        debugPrint('✅ User successfully saved to database!');
         
         // Show success message to user
         if (mounted) {
@@ -164,7 +163,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           );
         }
       } else {
-        print('ℹ️ User already exists in database');
+        debugPrint('ℹ️ User already exists in database');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -175,8 +174,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         }
       }
     } catch (e) {
-      print('❌ Error saving to database: $e');
-      print('❌ Error type: ${e.runtimeType}');
+      debugPrint('❌ Error saving to database: $e');
+      debugPrint('❌ Error type: ${e.runtimeType}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -239,10 +238,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
+              color: iconColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
-                color: iconColor.withOpacity(0.3),
+                color: iconColor.withValues(alpha: 0.3),
                 width: 2,
               ),
             ),
@@ -350,7 +349,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
   Widget _buildProfileForm() {
     return Container(
-      color: Colors.black.withOpacity(0.5),
+      color: Colors.black.withValues(alpha: 0.5),
       child: Center(
         child: Material(
           borderRadius: BorderRadius.circular(16),
@@ -568,7 +567,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         // Loading Overlay
         if (_isLoading && !_showProfileForm)
           Container(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             child: const Center(
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(Color(0xff2563eb)),

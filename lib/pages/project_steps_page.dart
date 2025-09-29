@@ -5,8 +5,13 @@ import 'package:minix/pages/project_name_suggestions_page.dart';
 import 'package:minix/pages/project_solution_page.dart';
 import 'package:minix/pages/project_roadmap_page.dart';
 import 'package:minix/pages/code_generation_page.dart';
+import 'package:minix/pages/ppt_generation_page.dart';
+import 'package:minix/pages/project_documentation_page.dart';
+import 'package:minix/pages/viva_preparation_page.dart';
 import 'package:minix/services/project_service.dart';
 import 'package:minix/models/problem.dart';
+import 'package:minix/models/solution.dart';
+import 'package:minix/models/project_roadmap.dart';
 
 class ProjectStepsPage extends StatefulWidget {
   final String projectSpaceId;
@@ -31,9 +36,9 @@ class ProjectStepsPage extends StatefulWidget {
 }
 
 class _ProjectStepsPageState extends State<ProjectStepsPage> {
-  int _currentStep = 1;
   final ProjectService _projectService = ProjectService();
   bool _isLoading = true;
+  int _currentStep = 1; // Add missing _currentStep variable
   
   final List<ProjectStep> _steps = [
     ProjectStep(
@@ -62,18 +67,24 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
     ),
     ProjectStep(
       number: 5,
-      title: 'Code Generation',
-      description: 'Generate code and collaborate with team',
-      icon: Icons.code_outlined,
+      title: 'Prompt Generation',
+      description: 'Generate smart AI prompts for coding tools',
+      icon: Icons.auto_awesome_outlined,
     ),
     ProjectStep(
       number: 6,
-      title: 'Documentation',
-      description: 'Generate PPTs and reports automatically',
-      icon: Icons.description_outlined,
+      title: 'PPT Generation',
+      description: 'Create professional presentations automatically',
+      icon: Icons.slideshow_outlined,
     ),
     ProjectStep(
       number: 7,
+      title: 'Documentation',
+      description: 'Generate reports and documentation',
+      icon: Icons.description_outlined,
+    ),
+    ProjectStep(
+      number: 8,
       title: 'Viva Preparation',
       description: 'Practice with AI-generated Q&A',
       icon: Icons.school_outlined,
@@ -96,7 +107,7 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
       final projectSpaceData = await _projectService.getProjectSpace(widget.projectSpaceId);
       if (projectSpaceData != null && projectSpaceData.containsKey('currentStep')) {
         setState(() {
-          _currentStep = projectSpaceData['currentStep'] ?? 1;
+          _currentStep = (projectSpaceData['currentStep'] as int?) ?? 1;
           _isLoading = false;
         });
       } else {
@@ -107,7 +118,7 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
         });
       }
     } catch (e) {
-      print('Error fetching current step: $e');
+      debugPrint('Error fetching current step: $e');
       // Fallback to widget.currentStep or 1
       setState(() {
         _currentStep = widget.currentStep;
@@ -122,11 +133,11 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
       final projectSpaceData = await _projectService.getProjectSpace(widget.projectSpaceId);
       if (projectSpaceData != null && projectSpaceData.containsKey('currentStep')) {
         setState(() {
-          _currentStep = projectSpaceData['currentStep'] ?? _currentStep;
+          _currentStep = (projectSpaceData['currentStep'] as int?) ?? _currentStep;
         });
       }
     } catch (e) {
-      print('Error refreshing current step: $e');
+      debugPrint('Error refreshing current step: $e');
     }
   }
 
@@ -211,10 +222,10 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Step ${_currentStep} of ${_steps.length}',
+                          'Step $_currentStep of ${_steps.length}',
                           style: GoogleFonts.poppins(
                             fontSize: 14,
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                           ),
                         ),
                       ],
@@ -223,7 +234,7 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -270,7 +281,7 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
         border: isCurrent ? Border.all(color: const Color(0xff2563eb), width: 2) : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -293,8 +304,8 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
                       : isCurrent 
                           ? const Color(0xff2563eb)
                           : isEnabled
-                              ? const Color(0xff2563eb).withOpacity(0.1)
-                              : const Color(0xff6b7280).withOpacity(0.1),
+                              ? const Color(0xff2563eb).withValues(alpha: 0.1)
+                              : const Color(0xff6b7280).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -365,7 +376,7 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
         // Navigate to Topic Selection
         Navigator.push(
           context,
-          MaterialPageRoute(
+          MaterialPageRoute<void>(
             builder: (context) => TopicSelectionPage(
               projectSpaceId: widget.projectSpaceId,
               yearOfStudy: widget.yearOfStudy,
@@ -391,16 +402,20 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
         _navigateToRoadmapGeneration();
         break;
       case 5:
-        // Navigate to Code Generation
-        _navigateToCodeGeneration();
+        // Navigate to Prompt Generation
+        _navigateToPromptGeneration();
         break;
       case 6:
-        // TODO: Navigate to Documentation
-        _showComingSoon('Documentation');
+        // Navigate to PPT Generation
+        _navigateToPPTGeneration();
         break;
       case 7:
-        // TODO: Navigate to Viva Preparation
-        _showComingSoon('Viva Preparation');
+        // Navigate to Documentation
+        _navigateToDocumentation();
+        break;
+      case 8:
+        // Navigate to Viva Preparation
+        _navigateToVivaPreparation();
         break;
     }
   }
@@ -415,7 +430,7 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
         Problem problem;
         if (projectSpaceData.containsKey('selectedProblem') && projectSpaceData['selectedProblem'] != null) {
           final problemData = projectSpaceData['selectedProblem'] as Map<dynamic, dynamic>;
-          problem = Problem.fromMap(problemData['id'] ?? 'default', Map<String, dynamic>.from(problemData));
+          problem = Problem.fromMap((problemData['id'] ?? 'default').toString(), Map<String, dynamic>.from(problemData));
         } else {
           // Create a default problem based on project space data
           problem = Problem(
@@ -435,23 +450,27 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
           );
         }
         
-        Navigator.push(
-          context,
-          MaterialPageRoute(
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute<void>(
             builder: (context) => ProjectNameSuggestionsPage(
               projectId: widget.projectSpaceId,
               problem: problem,
             ),
-          ),
-        ).then((_) async {
-          // After returning, refresh the steps to reflect progress
-          await _refreshCurrentStep();
-        });
+            ),
+          ).then((_) async {
+            // After returning, refresh the steps to reflect progress
+            if (mounted) {
+              await _refreshCurrentStep();
+            }
+          });
+        }
       } else {
         _showComingSoon('Name Selection - Project data not found');
       }
     } catch (e) {
-      print('Error navigating to name selection: $e');
+      debugPrint('Error navigating to name selection: $e');
       _showComingSoon('Name Selection - Error loading data');
     }
   }
@@ -469,7 +488,7 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
         Problem problem;
         if (projectSpaceData.containsKey('selectedProblem') && projectSpaceData['selectedProblem'] != null) {
           final problemData = projectSpaceData['selectedProblem'] as Map<dynamic, dynamic>;
-          problem = Problem.fromMap(problemData['id'] ?? 'default', Map<String, dynamic>.from(problemData));
+          problem = Problem.fromMap((problemData['id'] ?? 'default').toString(), Map<String, dynamic>.from(problemData));
         } else {
           // Create a default problem based on project space data
           problem = Problem(
@@ -489,24 +508,28 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
           );
         }
         
-        Navigator.push(
-          context,
-          MaterialPageRoute(
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute<void>(
             builder: (context) => ProjectSolutionPage(
               projectSpaceId: widget.projectSpaceId,
               problem: problem,
-              projectName: projectName,
+              projectName: projectName.toString(),
             ),
-          ),
-        ).then((_) async {
-          // After returning, refresh the steps to reflect progress
-          await _refreshCurrentStep();
-        });
+            ),
+          ).then((_) async {
+            // After returning, refresh the steps to reflect progress
+            if (mounted) {
+              await _refreshCurrentStep();
+            }
+          });
+        }
       } else {
         _showComingSoon('Solution Design - Project data not found');
       }
     } catch (e) {
-      print('Error navigating to solution design: $e');
+      debugPrint('Error navigating to solution design: $e');
       _showComingSoon('Solution Design - Error loading data');
     }
   }
@@ -524,7 +547,7 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
         Problem problem;
         if (projectSpaceData.containsKey('selectedProblem') && projectSpaceData['selectedProblem'] != null) {
           final problemData = projectSpaceData['selectedProblem'] as Map<dynamic, dynamic>;
-          problem = Problem.fromMap(problemData['id'] ?? 'default', Map<String, dynamic>.from(problemData));
+          problem = Problem.fromMap((problemData['id'] ?? 'default').toString(), Map<String, dynamic>.from(problemData));
         } else {
           // Create a default problem based on project space data
           problem = Problem(
@@ -544,29 +567,33 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
           );
         }
         
-        Navigator.push(
-          context,
-          MaterialPageRoute(
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute<void>(
             builder: (context) => ProjectRoadmapPage(
               projectSpaceId: widget.projectSpaceId,
               problem: problem,
-              projectName: projectName,
+              projectName: projectName.toString(),
             ),
-          ),
-        ).then((_) async {
-          // After returning, refresh the steps to reflect progress
-          await _refreshCurrentStep();
-        });
+            ),
+          ).then((_) async {
+            // After returning, refresh the steps to reflect progress
+            if (mounted) {
+              await _refreshCurrentStep();
+            }
+          });
+        }
       } else {
         _showComingSoon('Roadmap Generation - Project data not found');
       }
     } catch (e) {
-      print('Error navigating to roadmap generation: $e');
+      debugPrint('Error navigating to roadmap generation: $e');
       _showComingSoon('Roadmap Generation - Error loading data');
     }
   }
 
-  void _navigateToCodeGeneration() async {
+  void _navigateToPromptGeneration() async {
     try {
       // Get project space data to extract problem and project name
       final projectSpaceData = await _projectService.getProjectSpace(widget.projectSpaceId);
@@ -579,7 +606,7 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
         Problem problem;
         if (projectSpaceData.containsKey('selectedProblem') && projectSpaceData['selectedProblem'] != null) {
           final problemData = projectSpaceData['selectedProblem'] as Map<dynamic, dynamic>;
-          problem = Problem.fromMap(problemData['id'] ?? 'default', Map<String, dynamic>.from(problemData));
+          problem = Problem.fromMap((problemData['id'] ?? 'default').toString(), Map<String, dynamic>.from(problemData));
         } else {
           // Create a default problem based on project space data
           problem = Problem(
@@ -599,25 +626,176 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
           );
         }
         
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CodeGenerationPage(
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+            builder: (context) => PromptGenerationPage(
               projectSpaceId: widget.projectSpaceId,
-              projectName: projectName,
+              projectName: projectName.toString(),
               problem: problem,
             ),
-          ),
-        ).then((_) async {
-          // After returning, refresh the steps to reflect progress
-          await _refreshCurrentStep();
-        });
+            ),
+          ).then((_) async {
+            // After returning, refresh the steps to reflect progress
+            if (mounted) {
+              await _refreshCurrentStep();
+            }
+          });
+        }
       } else {
-        _showComingSoon('Code Generation - Project data not found');
+        _showComingSoon('Prompt Generation - Project data not found');
       }
     } catch (e) {
-      print('Error navigating to code generation: $e');
-      _showComingSoon('Code Generation - Error loading data');
+      debugPrint('Error navigating to prompt generation: $e');
+      _showComingSoon('Prompt Generation - Error loading data');
+    }
+  }
+
+  void _navigateToPPTGeneration() async {
+    try {
+      // Get project space data to extract project name
+      final projectSpaceData = await _projectService.getProjectSpace(widget.projectSpaceId);
+      
+      if (projectSpaceData != null) {
+        // Get project name (should be saved from step 2)
+        final projectName = projectSpaceData['projectName'] ?? 'Untitled Project';
+        
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+            builder: (context) => PPTGenerationPage(
+              projectSpaceId: widget.projectSpaceId,
+              projectName: projectName.toString(),
+            ),
+            ),
+          ).then((_) async {
+            // After returning, refresh the steps to reflect progress
+            if (mounted) {
+              await _refreshCurrentStep();
+            }
+          });
+        }
+      } else {
+        _showComingSoon('PPT Generation - Project data not found');
+      }
+    } catch (e) {
+      debugPrint('Error navigating to PPT generation: $e');
+      _showComingSoon('PPT Generation - Error loading data');
+    }
+  }
+
+  void _navigateToDocumentation() async {
+    try {
+      // Get project space data to extract project name
+      final projectSpaceData = await _projectService.getProjectSpace(widget.projectSpaceId);
+      
+      if (projectSpaceData != null) {
+        // Get project name (should be saved from step 2)
+        final projectName = projectSpaceData['projectName'] ?? 'Untitled Project';
+        
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+            builder: (context) => ProjectDocumentationPage(
+              projectSpaceId: widget.projectSpaceId,
+              projectName: projectName.toString(),
+            ),
+            ),
+          ).then((_) async {
+            // After returning, refresh the steps to reflect progress
+            if (mounted) {
+              await _refreshCurrentStep();
+            }
+          });
+        }
+      } else {
+        _showComingSoon('Documentation - Project data not found');
+      }
+    } catch (e) {
+      debugPrint('Error navigating to documentation: $e');
+      _showComingSoon('Documentation - Error loading data');
+    }
+  }
+
+  void _navigateToVivaPreparation() async {
+    try {
+      // Get project space data to extract problem, solution, and roadmap
+      final projectSpaceData = await _projectService.getProjectSpace(widget.projectSpaceId);
+      
+      if (projectSpaceData != null) {
+        // Get project name
+        final projectName = projectSpaceData['projectName'] ?? 'Untitled Project';
+        
+        // Check if we have a selected problem
+        Problem problem;
+        if (projectSpaceData.containsKey('selectedProblem') && projectSpaceData['selectedProblem'] != null) {
+          final problemData = projectSpaceData['selectedProblem'] as Map<dynamic, dynamic>;
+          problem = Problem.fromMap((problemData['id'] ?? 'default').toString(), Map<String, dynamic>.from(problemData));
+        } else {
+          // Create a default problem based on project space data
+          problem = Problem(
+            id: 'generated',
+            title: projectName.toString(),
+            description: 'Project for ${widget.targetPlatform} platform by ${widget.teamName}',
+            domain: widget.targetPlatform.toLowerCase(),
+            platform: [widget.targetPlatform],
+            year: [widget.yearOfStudy],
+            skills: ['Development', 'Design', 'Testing'],
+            difficulty: 'Medium',
+            scope: 'Medium',
+            beneficiaries: ['Students', 'Team Members'],
+            features: ['Custom Development', 'Team Collaboration'],
+            dataSources: ['Firebase', 'Local Storage'],
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          );
+        }
+        
+        // Get solution data
+        final solution = projectSpaceData.containsKey('selectedSolution') && projectSpaceData['selectedSolution'] != null
+            ? projectSpaceData['selectedSolution'] as Map<dynamic, dynamic>
+            : {'title': projectName, 'description': problem.description, 'techStack': ['Flutter', 'Firebase'], 'features': problem.features, 'domain': problem.domain};
+        
+        // Get roadmap data
+        final roadmap = projectSpaceData.containsKey('projectRoadmap') && projectSpaceData['projectRoadmap'] != null
+            ? projectSpaceData['projectRoadmap'] as Map<dynamic, dynamic>
+            : {'tasks': <dynamic>[], 'startDate': DateTime.now().millisecondsSinceEpoch, 'endDate': DateTime.now().add(const Duration(days: 60)).millisecondsSinceEpoch};
+        
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (context) => VivaPreparationPage(
+                projectId: widget.projectSpaceId,
+                solution: ProjectSolution.fromMap(Map<String, dynamic>.from(solution)),
+                roadmap: ProjectRoadmap.fromMap(Map<String, dynamic>.from(roadmap), []),
+              ),
+              settings: const RouteSettings(name: '/viva_preparation'),
+            ),
+          ).then((_) async {
+            // After returning, refresh the steps to reflect progress
+            if (mounted) {
+              await _refreshCurrentStep();
+              
+              // Mark step as completed
+              await _projectService.updateProjectSpaceStep(
+                projectSpaceId: widget.projectSpaceId,
+                step: 8,
+                additionalData: {
+                  'status': 'VivaCompleted',
+                },
+              );
+            }
+          });
+        }
+      } else {
+        _showComingSoon('Viva Preparation - Project data not found');
+      }
+    } catch (e) {
+      debugPrint('Error navigating to viva preparation: $e');
+      _showComingSoon('Viva Preparation - Error loading data');
     }
   }
 

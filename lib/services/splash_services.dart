@@ -30,7 +30,7 @@ class SplashServices {
         );
       }
     } catch (e) {
-      print('Error checking login status: $e');
+      debugPrint('Error checking login status: $e');
       
       if (!context.mounted) return;
       

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:minix/models/problem.dart';
 import 'package:minix/pages/problem_details_page.dart';
-import 'package:minix/pages/project_name_suggestions_page.dart';
 import 'package:minix/services/project_service.dart';
 import 'package:minix/services/gemini_problems_service.dart';
 
@@ -43,6 +42,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
   Set<String> _bookmarks = {};
   bool _isGeneratingDetails = false;
   String? _generatingDetailsForId;
+  
 
   // UI Constants
   final List<String> _domains = const [
@@ -110,7 +110,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
     });
 
     try {
-      print('🔍 Generating detailed problem for: ${baseProblem.title}');
+      debugPrint('🔍 Generating detailed problem for: ${baseProblem.title}');
       
       final detailedProblem = await _gemini.generateDetailedProblem(baseProblem);
       
@@ -130,7 +130,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
       );
       
     } catch (e) {
-      print('⚠️ Error generating detailed problem: $e');
+      debugPrint('⚠️ Error generating detailed problem: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('⚠️ Failed to generate details: ${e.toString()}'),
@@ -174,7 +174,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
           ? _customDomainController.text.trim() 
           : _selectedDomain!;
       
-      print('🚀 Starting AI search for domain: $domainToSearch, year: $year, techs: ${_selectedTechs.toList()}');
+      debugPrint('🚀 Starting AI search for domain: $domainToSearch, year: $year, techs: ${_selectedTechs.toList()}');
       
       final problems = await _gemini.fetchProblems(
         domain: domainToSearch,
@@ -185,7 +185,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
         count: 8,
       );
       
-      print('✅ Got ${problems.length} problems from AI');
+      debugPrint('✅ Got ${problems.length} problems from AI');
       
       setState(() {
         _searchResults = problems;
@@ -195,7 +195,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
       if (problems.isNotEmpty) {
         final firstProblem = problems.first;
         final isAiGenerated = firstProblem.id.startsWith('ai_');
-        print('🔍 First problem ID: ${firstProblem.id} (AI-generated: $isAiGenerated)');
+        debugPrint('🔍 First problem ID: ${firstProblem.id} (AI-generated: $isAiGenerated)');
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -212,7 +212,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
         );
       }
     } catch (e) {
-      print('❌ Error in _searchTopics: $e');
+      debugPrint('❌ Error in _searchTopics: $e');
       if (mounted) {
         String message = 'Failed to generate AI topics: ${e.toString()}';
         if (e.toString().contains('TimeoutException')) {
@@ -413,7 +413,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
                     }
                   });
                 },
-                selectedColor: const Color(0xff2563eb).withOpacity(0.2),
+                selectedColor: const Color(0xff2563eb).withValues(alpha: 0.2),
                 labelStyle: GoogleFonts.poppins(
                   color: isSelected ? const Color(0xff2563eb) : const Color(0xff374151),
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
@@ -483,7 +483,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
                     }
                   });
                 },
-                selectedColor: const Color(0xff059669).withOpacity(0.2),
+                selectedColor: const Color(0xff059669).withValues(alpha: 0.2),
                 labelStyle: GoogleFonts.poppins(
                   color: isSelected ? const Color(0xff059669) : const Color(0xff374151),
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
@@ -538,7 +538,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
                 return Chip(
                   label: Text(tech),
                   onDeleted: () => setState(() => _selectedTechs.remove(tech)),
-                  backgroundColor: const Color(0xff059669).withOpacity(0.1),
+                  backgroundColor: const Color(0xff059669).withValues(alpha: 0.1),
                   labelStyle: GoogleFonts.poppins(
                     color: const Color(0xff059669),
                     fontSize: 12,
@@ -616,7 +616,21 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
         // Results List
         Expanded(
           child: _isSearching
-              ? const Center(child: CircularProgressIndicator())
+              ? Column(
+                  children: [
+                    const Spacer(),
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(
+                      'AI is generating topics for you...',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: const Color(0xff6b7280),
+                      ),
+                    ),
+                    const Spacer(),
+                  ],
+                )
               : _searchResults.isEmpty
                   ? _buildEmptyResults()
                   : ListView.builder(
@@ -688,7 +702,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0,2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0,2)),
         ],
       ),
       child: InkWell(
@@ -699,83 +713,83 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  p.title,
-                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              IconButton(
-                onPressed: () async {
-                  await _projectService.setBookmark(p.id, !bookmarked);
-                  await _loadBookmarks();
-                },
-                icon: Icon(
-                  bookmarked ? Icons.bookmark : Icons.bookmark_outline, 
-                  color: const Color(0xff2563eb),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            p.description,
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: const Color(0xff6b7280),
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildTag(p.domain, const Color(0xff2563eb)),
-              _buildTag(p.scope, const Color(0xff059669)),
-              ...p.skills.take(3).map((skill) => _buildTag(skill, const Color(0xff7c3aed))),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: p.hasDetailedInfo || (_isGeneratingDetails && _generatingDetailsForId == p.id)
-                      ? null
-                      : () => _generateDetailedProblem(p),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: const Color(0xff059669).withOpacity(0.5)),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      p.title,
+                      style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                  child: _isGeneratingDetails && _generatingDetailsForId == p.id
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(
-                          p.hasDetailedInfo ? 'AI Enhanced ✓' : 'Enhance with AI',
-                          style: TextStyle(
-                            color: p.hasDetailedInfo ? const Color(0xff059669) : const Color(0xff059669),
-                            fontSize: 12,
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => _selectTopic(p),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff2563eb),
+                  IconButton(
+                    onPressed: () async {
+                      await _projectService.setBookmark(p.id, !bookmarked);
+                      await _loadBookmarks();
+                    },
+                    icon: Icon(
+                      bookmarked ? Icons.bookmark : Icons.bookmark_outline, 
+                      color: const Color(0xff2563eb),
+                    ),
                   ),
-                  child: const Text('Select Topic'),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                p.description,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xff6b7280),
+                  height: 1.4,
                 ),
               ),
-            ],
-          ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildTag(p.domain, const Color(0xff2563eb)),
+                  _buildTag(p.scope, const Color(0xff059669)),
+                  ...p.skills.take(3).map((skill) => _buildTag(skill, const Color(0xff7c3aed))),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: p.hasDetailedInfo || (_isGeneratingDetails && _generatingDetailsForId == p.id)
+                          ? null
+                          : () => _generateDetailedProblem(p),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: const Color(0xff059669).withValues(alpha: 0.5)),
+                      ),
+                      child: _isGeneratingDetails && _generatingDetailsForId == p.id
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(
+                              p.hasDetailedInfo ? 'AI Enhanced ✓' : 'Enhance with AI',
+                              style: TextStyle(
+                                color: p.hasDetailedInfo ? const Color(0xff059669) : const Color(0xff059669),
+                                fontSize: 12,
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _selectTopic(p),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xff2563eb),
+                      ),
+                      child: const Text('Select Topic'),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -787,9 +801,9 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         text,

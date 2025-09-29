@@ -45,11 +45,38 @@ dependencies:
   
   # UI and Animation dependencies
   google_fonts: ^6.1.0
-  lottie: ^3.3.1
+  lottie: ^3.1.0
   
   # Authentication
   google_sign_in: ^7.2.0
   google_generative_ai: ^0.4.4
+  
+  # URL launcher for external links
+  url_launcher: ^6.2.5
+  
+  # File picker for template uploads
+  file_picker: ^8.1.2
+  
+  # PPT Generation and Document Processing
+  path_provider: ^2.1.4
+  permission_handler: ^11.3.1
+  share_plus: ^10.0.2
+  pdf: ^3.11.1
+  printing: ^5.13.2
+  open_file: ^3.5.7
+  
+  # Enhanced Documentation Features
+  syncfusion_flutter_pdf: ^28.1.33
+  flutter_quill: ^11.4.2
+  flutter_html: ^3.0.0
+  html: ^0.15.4
+  
+  # Document Templates and Export
+  archive: ^4.0.2
+  xml: ^6.5.0
+  
+  # Citation and Reference Management
+  uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:
