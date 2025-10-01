@@ -7,6 +7,7 @@ import 'package:minix/models/code_generation.dart';
 import 'package:minix/services/project_service.dart';
 import 'package:minix/services/code_generation_service.dart';
 import 'package:minix/services/documentation_service.dart';
+import 'package:minix/services/invitation_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_file/open_file.dart';
 import 'package:share_plus/share_plus.dart';
@@ -30,9 +31,14 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
   final ProjectService _projectService = ProjectService();
   final CodeGenerationService _codeService = CodeGenerationService();
   final DocumentationService _documentationService = DocumentationService();
+  final InvitationService _invitationService = InvitationService();
+  
+  // Permissions
+  bool _canEdit = true;
+  bool _isCheckingPermissions = true;
 
   bool _isLoading = true;
-  bool _isGenerating = false;
+  String? _currentlyGenerating; // Track which document is being generated
   
   // Project data
   Map<String, dynamic>? _projectData;
@@ -41,8 +47,7 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
   CodeGenerationProject? _codeProject;
   
   // Documentation state
-  String? _generatedReport;
-  String? _generatedPPT;
+  final Map<String, String> _generatedDocuments = {}; // Store all generated documents by type
   String? _uploadedTemplateUrl;
   
   // Available document types
@@ -50,30 +55,30 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
     DocumentType(
       id: 'project_report',
       title: 'Project Report',
-      description: 'Complete technical documentation with all project details',
+      description: 'Concise technical documentation (2-3 pages)',
       icon: Icons.description,
-      estimatedTime: '5-8 minutes',
+      estimatedTime: '1-2 min',
     ),
     DocumentType(
-      id: 'presentation',
-      title: 'Project PPT',
-      description: 'Professional presentation slides for project demo',
-      icon: Icons.slideshow,
-      estimatedTime: '3-5 minutes',
+      id: 'technical_specification',
+      title: 'Technical Specification',
+      description: 'Brief system architecture overview (2-3 pages)',
+      icon: Icons.architecture,
+      estimatedTime: '1-2 min',
     ),
     DocumentType(
       id: 'synopsis',
       title: 'Project Synopsis',
-      description: 'Brief overview document for submission',
+      description: 'Brief overview document (2-3 pages)',
       icon: Icons.summarize,
-      estimatedTime: '2-3 minutes',
+      estimatedTime: '1-2 min',
     ),
     DocumentType(
       id: 'user_manual',
       title: 'User Manual',
-      description: 'Step-by-step guide for using the application',
+      description: 'Quick start guide (2-3 pages)',
       icon: Icons.help_outline,
-      estimatedTime: '3-4 minutes',
+      estimatedTime: '1-2 min',
     ),
   ];
 
@@ -81,7 +86,16 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _checkPermissions();
     _loadProjectData();
+  }
+  
+  Future<void> _checkPermissions() async {
+    final canEdit = await _invitationService.canEditProject(widget.projectSpaceId);
+    setState(() {
+      _canEdit = canEdit;
+      _isCheckingPermissions = false;
+    });
   }
 
   @override
@@ -128,7 +142,14 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
   }
 
   Future<void> _generateDocument(DocumentType docType) async {
-    setState(() => _isGenerating = true);
+    if (!_canEdit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only team leaders can generate documents')),
+      );
+      return;
+    }
+    
+    setState(() => _currentlyGenerating = docType.id);
 
     try {
       // Generate professional PDF document
@@ -147,11 +168,7 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
       await _projectService.updateCurrentStep(widget.projectSpaceId, 8);
 
       setState(() {
-        if (docType.id == 'presentation') {
-          _generatedPPT = pdfFilePath;
-        } else {
-          _generatedReport = pdfFilePath;
-        }
+        _generatedDocuments[docType.id] = pdfFilePath;
       });
 
       if (mounted) {
@@ -178,16 +195,23 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
       }
     } finally {
       if (mounted) {
-        setState(() => _isGenerating = false);
+        setState(() => _currentlyGenerating = null);
       }
     }
   }
 
   Future<void> _uploadTemplate() async {
+    if (!_canEdit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only team leaders can upload templates')),
+      );
+      return;
+    }
+    
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pptx', 'docx', 'pdf'],
+        allowedExtensions: ['docx', 'pdf', 'txt'],
       );
 
       if (result != null) {
@@ -340,7 +364,7 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
           const SizedBox(height: 24),
 
           // Generated Documents Section
-          if (_generatedReport != null || _generatedPPT != null) ...[
+          if (_generatedDocuments.isNotEmpty) ...[
             Text(
               'Generated Documents',
               style: GoogleFonts.poppins(
@@ -358,9 +382,13 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
   }
 
   Widget _buildDocumentTypeCard(DocumentType docType) {
+    final isThisGenerating = _currentlyGenerating == docType.id;
+    final isAnyGenerating = _currentlyGenerating != null;
+    final isGenerated = _generatedDocuments.containsKey(docType.id);
+    
     return Card(
       child: InkWell(
-        onTap: _isGenerating ? null : () => _generateDocument(docType),
+        onTap: isAnyGenerating ? null : () => _generateDocument(docType),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -370,7 +398,7 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
               Icon(
                 docType.icon,
                 size: 36,
-                color: _isGenerating ? Colors.grey : const Color(0xff2563eb),
+                color: isThisGenerating ? Colors.grey : (isGenerated ? const Color(0xff059669) : const Color(0xff2563eb)),
               ),
               const SizedBox(height: 8),
               Text(
@@ -378,7 +406,7 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: _isGenerating ? Colors.grey : const Color(0xff1f2937),
+                  color: isThisGenerating ? Colors.grey : const Color(0xff1f2937),
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
@@ -390,7 +418,7 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
                   docType.description,
                   style: GoogleFonts.poppins(
                     fontSize: 11,
-                    color: _isGenerating ? Colors.grey : const Color(0xff6b7280),
+                    color: isThisGenerating ? Colors.grey : const Color(0xff6b7280),
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 2,
@@ -401,19 +429,25 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: _isGenerating ? Colors.grey.shade200 : const Color(0xff2563eb).withValues(alpha: 0.1),
+                  color: isThisGenerating 
+                      ? Colors.grey.shade200 
+                      : (isGenerated 
+                          ? const Color(0xff059669).withValues(alpha: 0.1) 
+                          : const Color(0xff2563eb).withValues(alpha: 0.1)),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '${docType.estimatedTime} • PDF',
+                  isGenerated ? 'Generated ✓' : '${docType.estimatedTime} • PDF',
                   style: GoogleFonts.poppins(
                     fontSize: 9,
                     fontWeight: FontWeight.w500,
-                    color: _isGenerating ? Colors.grey : const Color(0xff2563eb),
+                    color: isThisGenerating 
+                        ? Colors.grey 
+                        : (isGenerated ? const Color(0xff059669) : const Color(0xff2563eb)),
                   ),
                 ),
               ),
-              if (_isGenerating) ...[
+              if (isThisGenerating) ...[
                 const SizedBox(height: 6),
                 const SizedBox(
                   width: 16,
@@ -430,12 +464,23 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
 
   Widget _buildGeneratedDocumentsSection() {
     return Column(
-      children: [
-        if (_generatedReport != null)
-          _buildGeneratedDocumentCard('Project Report', _generatedReport!, Icons.description),
-        if (_generatedPPT != null)
-          _buildGeneratedDocumentCard('Project PPT', _generatedPPT!, Icons.slideshow),
-      ],
+      children: _generatedDocuments.entries.map((entry) {
+        final docType = _documentTypes.firstWhere(
+          (type) => type.id == entry.key,
+          orElse: () => DocumentType(
+            id: entry.key,
+            title: entry.key,
+            description: '',
+            icon: Icons.description,
+            estimatedTime: '',
+          ),
+        );
+        return _buildGeneratedDocumentCard(
+          docType.title,
+          entry.value,
+          docType.icon,
+        );
+      }).toList(),
     );
   }
 
@@ -599,7 +644,7 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Upload your college-specific PPT or document template to ensure generated documents match your institution\'s format requirements.',
+                  'Upload your college-specific document template to ensure generated documents match your institution\'s format requirements.',
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: const Color(0xff6b7280),
@@ -667,7 +712,7 @@ class _ProjectDocumentationPageState extends State<ProjectDocumentationPage> wit
 
           // Template Preview Cards
           _buildTemplatePreviewCard('Academic Report Template', 'Standard academic format with proper sections'),
-          _buildTemplatePreviewCard('Professional PPT Template', 'Clean presentation design for project demos'),
+          _buildTemplatePreviewCard('Technical Specification Template', 'Architecture and design documentation format'),
           _buildTemplatePreviewCard('Synopsis Template', 'Brief format for project overviews'),
           _buildTemplatePreviewCard('User Manual Template', 'Step-by-step guide format'),
         ],

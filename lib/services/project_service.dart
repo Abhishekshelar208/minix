@@ -86,7 +86,7 @@ class ProjectService {
 
   Future<String?> createProjectSpace({
     required String teamName,
-    required List<String> teamMembers,
+    required List<Map<String, dynamic>> teamMembers,
     required int yearOfStudy,
     required String targetPlatform,
     required String difficulty,
@@ -284,15 +284,14 @@ class ProjectService {
   }
 
   /// Fetch all project spaces for the current user
+  /// Returns workspaces where user is either the owner OR a team member
   Future<List<ProjectSpaceSummary>> getUserProjectSpaces() async {
     final uid = _auth.currentUser?.uid;
-    if (uid == null) return [];
+    final userEmail = _auth.currentUser?.email;
+    if (uid == null || userEmail == null) return [];
 
-    final snapshot = await _db
-        .ref('ProjectSpaces')
-        .orderByChild('ownerId')
-        .equalTo(uid)
-        .get();
+    // Get all project spaces (we'll filter them)
+    final snapshot = await _db.ref('ProjectSpaces').get();
 
     if (!snapshot.exists) return [];
 
@@ -302,11 +301,43 @@ class ProjectService {
     for (final entry in data.entries) {
       final id = entry.key.toString();
       final spaceData = entry.value as Map<dynamic, dynamic>;
-      final summary = ProjectSpaceSummary.fromMap(
-        id,
-        Map<String, dynamic>.from(spaceData),
-      );
-      projectSpaces.add(summary);
+      final spaceMap = Map<String, dynamic>.from(spaceData);
+      
+      // Check if user is owner
+      final isOwner = spaceMap['ownerId'] == uid;
+      
+      // Check if user is a team member (by email)
+      bool isMember = false;
+      if (spaceMap.containsKey('teamMembers') && spaceMap['teamMembers'] != null) {
+        final teamMembers = spaceMap['teamMembers'];
+        if (teamMembers is List) {
+          // Check each team member
+          for (final member in teamMembers) {
+            if (member is Map) {
+              // New format: {name: "John", email: "john@example.com"}
+              final memberEmail = member['email']?.toString().toLowerCase();
+              if (memberEmail == userEmail.toLowerCase()) {
+                isMember = true;
+                break;
+              }
+            } else if (member is String) {
+              // Old format: just email strings (backward compatibility)
+              if (member.toLowerCase() == userEmail.toLowerCase()) {
+                isMember = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      // Include workspace if user is owner OR member
+      if (isOwner || isMember) {
+        // Add role information to the space data
+        spaceMap['userRole'] = isOwner ? 'owner' : 'member';
+        final summary = ProjectSpaceSummary.fromMap(id, spaceMap);
+        projectSpaces.add(summary);
+      }
     }
 
     // Sort by most recent first

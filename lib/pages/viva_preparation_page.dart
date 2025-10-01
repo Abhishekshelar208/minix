@@ -4,7 +4,10 @@ import '../models/mock_viva_session.dart';
 import '../models/presentation_tip.dart';
 import '../models/solution.dart';
 import '../models/project_roadmap.dart';
+import '../models/problem.dart';
 import '../services/viva_service.dart';
+import '../services/project_service.dart';
+import '../services/invitation_service.dart';
 import 'mock_viva_session_page.dart';
 
 class VivaPreparationPage extends StatefulWidget {
@@ -27,18 +30,47 @@ class _VivaPreparationPageState extends State<VivaPreparationPage>
     with TickerProviderStateMixin {
   late TabController _tabController;
   final VivaService _vivaService = VivaService();
+  final ProjectService _projectService = ProjectService();
+  final InvitationService _invitationService = InvitationService();
+  
+  // Permissions
+  bool _canEdit = true;
+  bool _isCheckingPermissions = true;
 
   List<VivaQuestion> _generatedQuestions = [];
   List<MockVivaSession> _mockSessions = [];
   bool _isGeneratingQuestions = false;
   bool _isLoadingTips = false;
+  
+  // Project context data
+  String _projectName = '';
+  Problem? _problem;
+  Map<String, dynamic>? _projectData;
+  
+  // NEW: Filter and state management
+  VivaQuestionCategory? _selectedCategory;
+  final Map<String, String> _userAnswers = {}; // questionId -> answer
+  final Set<String> _checkedItems = {}; // checklist items
+  final Map<String, bool> _expandedQuestions = {}; // questionId -> expanded state
+  int _answeredCount = 0;
+  DateTime? _practiceStartTime;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _vivaService.initialize();
+    _checkPermissions();
     _loadExistingData();
+    _loadProjectContext();
+  }
+  
+  Future<void> _checkPermissions() async {
+    final canEdit = await _invitationService.canEditProject(widget.projectId);
+    setState(() {
+      _canEdit = canEdit;
+      _isCheckingPermissions = false;
+    });
   }
 
   @override
@@ -52,17 +84,54 @@ class _VivaPreparationPageState extends State<VivaPreparationPage>
       _mockSessions = _vivaService.getSessionsForProject(widget.projectId);
     });
   }
+  
+  Future<void> _loadProjectContext() async {
+    try {
+      final projectData = await _projectService.getProjectSpaceData(widget.projectId);
+      
+      if (projectData != null) {
+        setState(() {
+          _projectName = projectData['projectName']?.toString() ?? 'Untitled Project';
+          _projectData = projectData;
+          
+          // Get problem data
+          if (projectData.containsKey('selectedProblem')) {
+            final problemData = projectData['selectedProblem'] as Map<dynamic, dynamic>;
+            _problem = Problem.fromMap(
+              problemData['id']?.toString() ?? 'default',
+              Map<String, dynamic>.from(problemData),
+            );
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading project context: $e');
+    }
+  }
 
   Future<void> _generateQuestions() async {
+    if (!_canEdit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only team leaders can generate viva questions')),
+      );
+      return;
+    }
+    
     setState(() {
       _isGeneratingQuestions = true;
     });
 
     try {
+      debugPrint('📚 Starting question generation with full project context');
+      
       final questions = await _vivaService.generateProjectSpecificQuestions(
+        projectSpaceId: widget.projectId,
+        projectName: _projectName.isNotEmpty ? _projectName : 'Untitled Project',
+        problem: _problem,
         solution: widget.solution,
         roadmap: widget.roadmap,
-        count: 20,
+        projectData: _projectData,
+        count: 15, // Reduced from 20 for faster generation
       );
 
       setState(() {
@@ -75,21 +144,38 @@ class _VivaPreparationPageState extends State<VivaPreparationPage>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Generated ${questions.length} viva questions successfully!'),
+            content: Text('✅ Generated ${questions.length} viva questions successfully!'),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
+      debugPrint('❌ Error generating questions: $e');
+      
       setState(() {
         _isGeneratingQuestions = false;
       });
 
       if (mounted) {
+        // Check if it's a timeout error
+        final isTimeout = e.toString().contains('TimeoutException');
+        final errorMessage = isTimeout
+            ? 'Question generation timed out. This can happen with complex projects. Please try again.'
+            : 'Failed to generate questions: ${e.toString()}';
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to generate questions. Please try again.'),
+          SnackBar(
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            action: isTimeout
+                ? SnackBarAction(
+                    label: 'Retry',
+                    textColor: Colors.white,
+                    onPressed: _generateQuestions,
+                  )
+                : null,
           ),
         );
       }
@@ -375,6 +461,8 @@ class _VivaPreparationPageState extends State<VivaPreparationPage>
             ),
           ),
           const SizedBox(height: 16),
+          if (_generatedQuestions.isNotEmpty) _buildPracticeProgress(),
+          const SizedBox(height: 16),
           _buildCategoryFilter(),
           const SizedBox(height: 16),
           if (_generatedQuestions.isNotEmpty)
@@ -416,31 +504,201 @@ class _VivaPreparationPageState extends State<VivaPreparationPage>
     );
   }
 
+  Widget _buildPracticeProgress() {
+    final answeredCount = _userAnswers.values.where((answer) => answer.trim().isNotEmpty).length;
+    final progress = _generatedQuestions.isEmpty ? 0.0 : answeredCount / _generatedQuestions.length;
+    
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Theme.of(context).colorScheme.primaryContainer,
+              Theme.of(context).colorScheme.secondaryContainer,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.trending_up,
+                  size: 32,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Practice Progress',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${(progress * 100).toInt()}% Complete',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 12,
+                backgroundColor: Colors.white.withValues(alpha: 0.3),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  progress > 0.7 ? Colors.green : Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    icon: Icons.check_circle,
+                    label: 'Answered',
+                    value: '$answeredCount',
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    icon: Icons.pending,
+                    label: 'Remaining',
+                    value: '${_generatedQuestions.length - answeredCount}',
+                    color: Colors.orange,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    icon: Icons.quiz,
+                    label: 'Total',
+                    value: '${_generatedQuestions.length}',
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCategoryFilter() {
     return Card(
+      elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Filter by Category',
-              style: Theme.of(context).textTheme.titleSmall,
+            Row(
+              children: [
+                Icon(Icons.filter_list, size: 20, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Filter by Category',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                if (_selectedCategory != null)
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _selectedCategory = null;
+                      });
+                    },
+                    icon: const Icon(Icons.clear, size: 16),
+                    label: const Text('Clear'),
+                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  ),
+              ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Wrap(
               spacing: 8.0,
-              runSpacing: 4.0,
-              children: VivaQuestionCategory.values.map((category) {
-                final count = _generatedQuestions.where((q) => q.category == category).length;
-                return FilterChip(
-                  label: Text('${category.displayName} ($count)'),
-                  selected: false, // TODO: Implement filter state
+              runSpacing: 8.0,
+              children: [
+                FilterChip(
+                  label: Text('All (${_generatedQuestions.length})'),
+                  selected: _selectedCategory == null,
                   onSelected: (selected) {
-                    // TODO: Implement filtering
+                    if (selected) {
+                      setState(() {
+                        _selectedCategory = null;
+                      });
+                    }
                   },
-                );
-              }).toList(),
+                  selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                ),
+                ...VivaQuestionCategory.values.map((category) {
+                  final count = _generatedQuestions.where((q) => q.category == category).length;
+                  if (count == 0) return const SizedBox.shrink();
+                  return FilterChip(
+                    label: Text('${category.displayName} ($count)'),
+                    selected: _selectedCategory == category,
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedCategory = selected ? category : null;
+                      });
+                    },
+                    selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                  );
+                }),
+              ],
             ),
           ],
         ),
@@ -449,14 +707,56 @@ class _VivaPreparationPageState extends State<VivaPreparationPage>
   }
 
   Widget _buildPracticeQuestions() {
+    // Filter questions based on selected category
+    final filteredQuestions = _selectedCategory == null
+        ? _generatedQuestions
+        : _generatedQuestions.where((q) => q.category == _selectedCategory).toList();
+    
+    if (filteredQuestions.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.search_off,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No questions in this category',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                const Text('Try selecting a different category'),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    
     return Column(
-      children: _generatedQuestions.map((question) => _buildPracticeQuestionCard(question)).toList(),
+      children: filteredQuestions.map((question) => _buildPracticeQuestionCard(question)).toList(),
     );
   }
 
   Widget _buildPracticeQuestionCard(VivaQuestion question) {
+    final hasAnswer = _userAnswers.containsKey(question.id) && _userAnswers[question.id]!.isNotEmpty;
+    final controller = TextEditingController(text: _userAnswers[question.id] ?? '');
+    
     return Card(
-      margin: const EdgeInsets.only(bottom: 8.0),
+      margin: const EdgeInsets.only(bottom: 12.0),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: hasAnswer ? Colors.green.withValues(alpha: 0.3) : Colors.transparent,
+          width: 2,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -465,51 +765,92 @@ class _VivaPreparationPageState extends State<VivaPreparationPage>
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (hasAnswer)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: Icon(Icons.check_circle, color: Colors.green, size: 20),
+                  ),
                 Expanded(
                   child: Text(
                     question.question,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Chip(
-                  label: Text(question.difficulty.displayName),
+                  label: Text(question.difficulty.displayName, style: const TextStyle(fontSize: 11)),
                   backgroundColor: _getDifficultyColor(question.difficulty),
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            Chip(
+              label: Text(question.category.displayName, style: const TextStyle(fontSize: 11)),
+              backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
             const SizedBox(height: 12),
             const Divider(),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             TextField(
-              decoration: const InputDecoration(
+              controller: controller,
+              decoration: InputDecoration(
                 hintText: 'Type your answer here...',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.all(12),
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.all(12),
+                filled: true,
+                fillColor: hasAnswer ? Colors.green.withValues(alpha: 0.05) : null,
+                suffixIcon: hasAnswer ? const Icon(Icons.check, color: Colors.green) : null,
               ),
-              maxLines: 3,
+              maxLines: 4,
               onChanged: (value) {
-                // TODO: Save answer for later review
+                setState(() {
+                  _userAnswers[question.id] = value;
+                  if (value.trim().isNotEmpty && !hasAnswer) {
+                    _answeredCount++;
+                  } else if (value.trim().isEmpty && hasAnswer) {
+                    _answeredCount--;
+                  }
+                });
               },
             ),
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
               children: [
-                TextButton.icon(
+                ElevatedButton.icon(
                   onPressed: () => _showSuggestedAnswer(question),
-                  icon: const Icon(Icons.lightbulb_outline),
+                  icon: const Icon(Icons.lightbulb_outline, size: 18),
                   label: const Text('Show Answer'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
                 ),
-                const SizedBox(width: 8),
                 if (question.keywords.isNotEmpty)
-                  TextButton.icon(
+                  OutlinedButton.icon(
                     onPressed: () => _showKeywords(question),
-                    icon: const Icon(Icons.key),
-                    label: const Text('Show Keywords'),
+                    icon: const Icon(Icons.key, size: 18),
+                    label: const Text('Keywords'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                  ),
+                if (hasAnswer)
+                  OutlinedButton.icon(
+                    onPressed: () => _compareAnswers(question, controller.text),
+                    icon: const Icon(Icons.compare_arrows, size: 18),
+                    label: const Text('Compare'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
                   ),
               ],
             ),
@@ -547,6 +888,84 @@ class _VivaPreparationPageState extends State<VivaPreparationPage>
           children: question.keywords.map((keyword) {
             return Chip(label: Text(keyword));
           }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _compareAnswers(VivaQuestion question, String userAnswer) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Answer Comparison'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Your Answer:',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                ),
+                child: Text(userAnswer),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Suggested Answer:',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                ),
+                child: Text(question.suggestedAnswer),
+              ),
+              if (question.keywords.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Key Terms to Include:',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 4.0,
+                  children: question.keywords.map((keyword) {
+                    return Chip(
+                      label: Text(keyword),
+                      backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    );
+                  }).toList(),
+                ),
+              ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -828,32 +1247,110 @@ class _VivaPreparationPageState extends State<VivaPreparationPage>
   }
 
   Widget _buildPreparationChecklist(List<String> checklist) {
+    final completedCount = checklist.where((item) => _checkedItems.contains(item)).length;
+    final progress = checklist.isEmpty ? 0.0 : completedCount / checklist.length;
+    
     return Card(
+      elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '✅ Preparation Checklist',
-              style: Theme.of(context).textTheme.titleMedium,
+            Row(
+              children: [
+                Text(
+                  '✅ Preparation Checklist',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                Text(
+                  '$completedCount/${checklist.length}',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            ...checklist.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
+            LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.grey.withValues(alpha: 0.2),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                progress == 1.0 ? Colors.green : Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...checklist.map((item) {
+              final isChecked = _checkedItems.contains(item);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (isChecked) {
+                        _checkedItems.remove(item);
+                      } else {
+                        _checkedItems.add(item);
+                      }
+                    });
+                  },
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Checkbox(
-                        value: false, // TODO: Implement checklist state
+                        value: isChecked,
                         onChanged: (value) {
-                          // TODO: Save checklist state
+                          setState(() {
+                            if (value == true) {
+                              _checkedItems.add(item);
+                            } else {
+                              _checkedItems.remove(item);
+                            }
+                          });
                         },
                       ),
-                      Expanded(child: Text(item)),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 12.0),
+                          child: Text(
+                            item,
+                            style: TextStyle(
+                              decoration: isChecked ? TextDecoration.lineThrough : null,
+                              color: isChecked ? Colors.grey : null,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                )),
+                ),
+              );
+            }),
+            if (progress == 1.0) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.celebration, color: Colors.green),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Great! You\'ve completed all preparation items!',
+                        style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

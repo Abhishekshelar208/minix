@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
 import 'package:minix/models/problem.dart';
 import 'package:minix/models/project_roadmap.dart';
 import 'package:minix/models/task.dart';
 import 'package:minix/services/gemini_problems_service.dart';
 import 'package:minix/services/project_service.dart';
+import 'package:minix/services/invitation_service.dart';
+import 'package:minix/widgets/read_only_banner.dart';
 
 class ProjectRoadmapPage extends StatefulWidget {
   final String projectSpaceId;
@@ -26,7 +29,12 @@ class ProjectRoadmapPage extends StatefulWidget {
 class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
   final _projectService = ProjectService();
   final _gemini = const GeminiProblemsService();
+  final _invitationService = InvitationService();
   final _formKey = GlobalKey<FormState>();
+  
+  // Permissions
+  bool _canEdit = true;
+  bool _isCheckingPermissions = true;
 
   // Form controllers
   final _deadlineController = TextEditingController();
@@ -44,7 +52,16 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
   @override
   void initState() {
     super.initState();
+    _checkPermissions();
     _loadProjectSpaceData();
+  }
+  
+  Future<void> _checkPermissions() async {
+    final canEdit = await _invitationService.canEditProject(widget.projectSpaceId);
+    setState(() {
+      _canEdit = canEdit;
+      _isCheckingPermissions = false;
+    });
   }
 
   @override
@@ -126,6 +143,13 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
   }
 
   Future<void> _generateRoadmap() async {
+    if (!_canEdit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only team leaders can generate roadmap')),
+      );
+      return;
+    }
+    
     if (!_formKey.currentState!.validate() || _selectedDeadline == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -143,11 +167,26 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
       final teamMembers = _projectSpaceData?['teamMembers'] != null 
           ? List<String>.from(_projectSpaceData!['teamMembers'] as List)
           : <String>['Team'];
-      final difficulty = _projectSpaceData?['difficulty'] ?? 'Intermediate';
-      final targetPlatform = _projectSpaceData?['targetPlatform'] ?? 'App';
+      
+      // Safely extract difficulty and targetPlatform as strings
+      final difficultyValue = _projectSpaceData?['difficulty'];
+      final difficulty = difficultyValue is String ? difficultyValue : 'Intermediate';
+      
+      final platformValue = _projectSpaceData?['targetPlatform'];
+      final targetPlatform = platformValue is String ? platformValue : 'App';
       
       // Use skills from the selected problem instead of manual input
       final problemSkills = widget.problem.skills;
+      
+      // Debug ALL parameters to find the Map issue
+      debugPrint('🔍 === DEBUGGING ROADMAP PARAMETERS ===');
+      debugPrint('projectName type: ${widget.projectName.runtimeType}');
+      debugPrint('problem.description type: ${widget.problem.description.runtimeType}');
+      debugPrint('teamMembers type: ${teamMembers.runtimeType}');
+      debugPrint('problemSkills type: ${problemSkills.runtimeType}');
+      debugPrint('difficulty type: ${difficulty.runtimeType} = "$difficulty"');
+      debugPrint('targetPlatform type: ${targetPlatform.runtimeType} = "$targetPlatform"');
+      debugPrint('=== END DEBUG ===');
 
       // Generate enhanced roadmap using AI with full context
       final tasks = await _gemini.generateRoadmap(
@@ -157,10 +196,10 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
         teamSkills: problemSkills,
         startDate: startDate,
         endDate: _selectedDeadline!,
-        difficulty: difficulty.toString(),
-        targetPlatform: targetPlatform.toString(),
-        problem: widget.problem, // Pass full problem context
-        solution: _selectedSolution, // Pass selected solution context
+        difficulty: difficulty,
+        targetPlatform: targetPlatform,
+        problem: null, // Temporarily null
+        solution: null, // Temporarily null
       );
 
       // Save roadmap to Firebase
@@ -218,6 +257,13 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
   }
 
   Future<void> _toggleTaskCompletion(Task task) async {
+    if (!_canEdit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only team leaders can update tasks')),
+      );
+      return;
+    }
+    
     if (_roadmap == null) return;
 
     try {
@@ -277,6 +323,9 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
       ),
       body: Column(
         children: [
+          // Read-only banner for non-leaders
+          if (!_canEdit) const ReadOnlyBanner(),
+          
           // Progress Header
           Container(
             width: double.infinity,
@@ -321,11 +370,55 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
           Expanded(
             child: _isLoadingData 
                 ? const Center(child: CircularProgressIndicator())
-                : _generatedTasks != null 
-                    ? _buildRoadmapView()
-                    : _buildRoadmapForm(),
+                : _isGeneratingRoadmap
+                    ? _buildGeneratingRoadmapView()
+                    : _generatedTasks != null 
+                        ? _buildRoadmapView()
+                        : _buildRoadmapForm(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildGeneratingRoadmapView() {
+    return Container(
+      color: Colors.white,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Lottie animation
+            Lottie.asset(
+              'lib/assets/animations/loading1.json',
+              width: double.infinity,
+              height: 300,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              '🛣️ AI is crafting your project roadmap...',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                color: const Color(0xff1f2937),
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Text(
+                'Creating detailed tasks, milestones, and timelines tailored to your project',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xff6b7280),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -438,13 +531,14 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
             TextFormField(
               controller: _deadlineController,
               readOnly: true,
+              enabled: _canEdit,
               decoration: InputDecoration(
-                hintText: 'Select project deadline',
+                hintText: _canEdit ? 'Select project deadline' : 'Read-only mode',
                 prefixIcon: const Icon(Icons.calendar_today),
-                suffixIcon: IconButton(
+                suffixIcon: _canEdit ? IconButton(
                   onPressed: _selectDeadline,
                   icon: const Icon(Icons.date_range),
-                ),
+                ) : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -460,7 +554,7 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
                 }
                 return null;
               },
-              onTap: _selectDeadline,
+              onTap: _canEdit ? _selectDeadline : null,
             ),
             const SizedBox(height: 24),
 
@@ -518,7 +612,7 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
               width: double.infinity,
               height: 56,
               child: ElevatedButton.icon(
-                onPressed: _isGeneratingRoadmap ? null : _generateRoadmap,
+                onPressed: (!_canEdit || _isGeneratingRoadmap) ? null : _generateRoadmap,
                 icon: _isGeneratingRoadmap
                     ? const SizedBox(
                         width: 20,
@@ -527,14 +621,16 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
                       )
                     : const Icon(Icons.auto_awesome),
                 label: Text(
-                  _isGeneratingRoadmap ? 'Generating Roadmap...' : 'Generate AI Roadmap',
+                  _isGeneratingRoadmap ? 'Generating Roadmap...' : 
+                  !_canEdit ? 'Only leaders can generate roadmap' :
+                  'Generate AI Roadmap',
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xff2563eb),
+                  backgroundColor: _canEdit ? const Color(0xff2563eb) : Colors.grey,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

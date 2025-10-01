@@ -6,6 +6,7 @@ import 'package:minix/models/problem.dart';
 import 'package:minix/models/solution.dart';
 import 'package:minix/services/code_generation_service.dart';
 import 'package:minix/services/project_service.dart';
+import 'package:minix/services/invitation_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PromptGenerationPage extends StatefulWidget {
@@ -27,6 +28,11 @@ class PromptGenerationPage extends StatefulWidget {
 class _PromptGenerationPageState extends State<PromptGenerationPage> {
   final CodeGenerationService _codeService = CodeGenerationService();
   final ProjectService _projectService = ProjectService();
+  final InvitationService _invitationService = InvitationService();
+  
+  // Permissions
+  bool _canEdit = true;
+  bool _isCheckingPermissions = true;
   
   bool _isLoading = true;
   bool _isGeneratingPrompts = false;
@@ -82,7 +88,16 @@ class _PromptGenerationPageState extends State<PromptGenerationPage> {
   @override
   void initState() {
     super.initState();
+    _checkPermissions();
     _loadProjectData();
+  }
+  
+  Future<void> _checkPermissions() async {
+    final canEdit = await _invitationService.canEditProject(widget.projectSpaceId);
+    setState(() {
+      _canEdit = canEdit;
+      _isCheckingPermissions = false;
+    });
   }
 
   Future<void> _loadProjectData() async {
@@ -139,6 +154,13 @@ class _PromptGenerationPageState extends State<PromptGenerationPage> {
   }
 
   Future<void> _initializePromptGeneration() async {
+    if (!_canEdit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only team leaders can generate code prompts')),
+      );
+      return;
+    }
+    
     setState(() => _isLoading = true);
 
     try {
@@ -183,6 +205,13 @@ class _PromptGenerationPageState extends State<PromptGenerationPage> {
   }
 
   Future<void> _generatePromptForStep(CodeStep step, CodeModule module) async {
+    if (!_canEdit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only team leaders can generate prompts')),
+      );
+      return;
+    }
+    
     setState(() => _isGeneratingPrompts = true);
 
     try {

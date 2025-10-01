@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:minix/services/project_service.dart';
+import 'package:minix/services/invitation_service.dart';
 
 class ProjectSpaceCreationPage extends StatefulWidget {
   const ProjectSpaceCreationPage({super.key});
@@ -12,15 +15,19 @@ class ProjectSpaceCreationPage extends StatefulWidget {
 
 class _ProjectSpaceCreationPageState extends State<ProjectSpaceCreationPage> {
   final _projectService = ProjectService();
+  final _invitationService = InvitationService();
   final _formKey = GlobalKey<FormState>();
+  final _auth = FirebaseAuth.instance;
+  final _database = FirebaseDatabase.instance.ref();
   
   // Controllers
   final _teamNameController = TextEditingController();
   final _memberNameController = TextEditingController();
+  final _memberEmailController = TextEditingController();
   
   // Form state
   int _selectedYear = 2;
-  List<String> _teamMembers = [];
+  List<Map<String, dynamic>> _teamMembers = []; // Changed to dynamic to support isLeader bool
   bool _isCreatingSpace = false;
 
   // Platform selection
@@ -31,17 +38,65 @@ class _ProjectSpaceCreationPageState extends State<ProjectSpaceCreationPage> {
   void dispose() {
     _teamNameController.dispose();
     _memberNameController.dispose();
+    _memberEmailController.dispose();
     super.dispose();
   }
 
   void _addTeamMember() {
     final memberName = _memberNameController.text.trim();
-    if (memberName.isNotEmpty && !_teamMembers.contains(memberName)) {
-      setState(() {
-        _teamMembers.add(memberName);
-        _memberNameController.clear();
-      });
+    final memberEmail = _memberEmailController.text.trim();
+    
+    if (memberName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Please enter member name'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
     }
+    
+    if (memberEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Please enter member email'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    // Basic email validation
+    if (!memberEmail.contains('@') || !memberEmail.contains('.')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Please enter a valid email address'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    // Check if email already exists
+    if (_teamMembers.any((member) => member['email'] == memberEmail)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ This email is already added'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    setState(() {
+      _teamMembers.add({
+        'name': memberName, 
+        'email': memberEmail,
+        'isLeader': false, // Default to false, user can toggle
+      });
+      _memberNameController.clear();
+      _memberEmailController.clear();
+    });
   }
 
   void _removeTeamMember(int index) {
@@ -91,10 +146,56 @@ class _ProjectSpaceCreationPageState extends State<ProjectSpaceCreationPage> {
       );
 
       if (mounted && projectSpaceId != null) {
+        // Add leader as project member
+        await _database
+            .child('ProjectMembers')
+            .child(projectSpaceId)
+            .child(_auth.currentUser!.uid)
+            .set({
+          'userId': _auth.currentUser!.uid,
+          'name': _auth.currentUser!.displayName ?? 'Team Leader',
+          'email': _auth.currentUser!.email,
+          'role': 'leader',
+          'joinedAt': DateTime.now().millisecondsSinceEpoch,
+          'isActive': true,
+        });
+
+        // Add project to leader's UserProjects
+        await _database
+            .child('UserProjects')
+            .child(_auth.currentUser!.uid)
+            .child(projectSpaceId)
+            .set({
+          'projectSpaceId': projectSpaceId,
+          'role': 'leader',
+          'joinedAt': DateTime.now().millisecondsSinceEpoch,
+        });
+
+        // Send invitations to all team members
+        if (_teamMembers.isNotEmpty) {
+          try {
+            await _invitationService.sendBulkInvitations(
+              projectSpaceId: projectSpaceId,
+              projectName: _teamNameController.text.trim(),
+              teamName: _teamNameController.text.trim(),
+              targetPlatform: _selectedPlatform,
+              yearOfStudy: _selectedYear,
+              members: _teamMembers,
+            );
+          } catch (e) {
+            print('Failed to send invitations: $e');
+            // Don't block project creation if invitations fail
+          }
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Project space "${_teamNameController.text.trim()}" created!'),
+            content: Text(
+              '✅ Project space "${_teamNameController.text.trim()}" created!\n'
+              '📧 Invitations sent to ${_teamMembers.length} member(s)'
+            ),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
           ),
         );
 
@@ -353,14 +454,30 @@ class _ProjectSpaceCreationPageState extends State<ProjectSpaceCreationPage> {
                     // Team Members Section
                     _buildSectionTitle('Team Members *'),
                     const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _memberNameController,
+                      decoration: InputDecoration(
+                        hintText: 'Member name',
+                        prefixIcon: const Icon(Icons.person),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xff2563eb), width: 2),
+                        ),
+                      ),
+                      style: GoogleFonts.poppins(),
+                    ),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
                           child: TextFormField(
-                            controller: _memberNameController,
+                            controller: _memberEmailController,
                             decoration: InputDecoration(
-                              hintText: 'Add team member name',
-                              prefixIcon: const Icon(Icons.person_add),
+                              hintText: 'Member email',
+                              prefixIcon: const Icon(Icons.email),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -370,6 +487,7 @@ class _ProjectSpaceCreationPageState extends State<ProjectSpaceCreationPage> {
                               ),
                             ),
                             style: GoogleFonts.poppins(),
+                            keyboardType: TextInputType.emailAddress,
                             onFieldSubmitted: (_) => _addTeamMember(),
                           ),
                         ),
@@ -404,23 +522,122 @@ class _ProjectSpaceCreationPageState extends State<ProjectSpaceCreationPage> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _teamMembers.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final member = entry.value;
-                          return Chip(
-                            label: Text(member),
-                            onDeleted: () => _removeTeamMember(index),
-                            backgroundColor: const Color(0xff059669).withValues(alpha: 0.1),
-                            labelStyle: GoogleFonts.poppins(
-                              color: const Color(0xff059669),
-                              fontSize: 12,
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _teamMembers.length,
+                        itemBuilder: (context, index) {
+                          final member = _teamMembers[index];
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xff059669).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xff059669).withValues(alpha: 0.3),
+                              ),
                             ),
-                            deleteIconColor: const Color(0xff059669),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.person,
+                                  color: Color(0xff059669),
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              (member['name'] as String?) ?? '',
+                                              style: GoogleFonts.poppins(
+                                                fontWeight: FontWeight.w600,
+                                                color: const Color(0xff059669),
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ),
+                                          if (member['isLeader'] == true) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xffeab308),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                'LEADER',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      Text(
+                                        (member['email'] as String?) ?? '',
+                                        style: GoogleFonts.poppins(
+                                          color: const Color(0xff059669).withValues(alpha: 0.8),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // Team Leader Toggle
+                                Tooltip(
+                                  message: 'Toggle Team Leader',
+                                  child: InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        final currentValue = member['isLeader'] as bool? ?? false;
+                                        member['isLeader'] = !currentValue;
+                                      });
+                                    },
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: member['isLeader'] == true 
+                                            ? const Color(0xffeab308).withValues(alpha: 0.2)
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: member['isLeader'] == true
+                                              ? const Color(0xffeab308)
+                                              : Colors.grey.shade400,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        Icons.star,
+                                        color: member['isLeader'] == true
+                                            ? const Color(0xffeab308)
+                                            : Colors.grey.shade400,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.close),
+                                  color: const Color(0xff059669),
+                                  iconSize: 20,
+                                  onPressed: () => _removeTeamMember(index),
+                                ),
+                              ],
+                            ),
                           );
-                        }).toList(),
+                        },
                       ),
                     ],
 

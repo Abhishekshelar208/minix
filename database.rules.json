@@ -75,6 +75,34 @@
         ".read": "auth != null && auth.uid == $uid",
         ".write": "auth != null && auth.uid == $uid"
       }
+    },
+    
+    "Invitations": {
+      "$userEmail": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    "ProjectInvitations": {
+      "$projectId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    "ProjectMembers": {
+      "$projectId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    
+    "UserProjects": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null"
+      }
     }
   }
 }

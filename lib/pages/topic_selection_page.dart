@@ -5,6 +5,10 @@ import 'package:minix/models/problem.dart';
 import 'package:minix/pages/problem_details_page.dart';
 import 'package:minix/services/project_service.dart';
 import 'package:minix/services/gemini_problems_service.dart';
+import 'package:minix/services/invitation_service.dart';
+import 'package:minix/widgets/read_only_banner.dart';
+import 'package:minix/widgets/domain_facts_overlay.dart';
+import 'package:minix/data/enhancement_tips.dart';
 
 class TopicSelectionPage extends StatefulWidget {
   final String? projectSpaceId;
@@ -27,9 +31,14 @@ class TopicSelectionPage extends StatefulWidget {
 class _TopicSelectionPageState extends State<TopicSelectionPage> {
   final _projectService = ProjectService();
   final _gemini = const GeminiProblemsService();
+  final _invitationService = InvitationService();
   final _yearController = TextEditingController();
   final _customTechController = TextEditingController();
   final _customDomainController = TextEditingController();
+  
+  // Permissions
+  bool _canEdit = true;
+  bool _isCheckingPermissions = true;
 
   // Form state
   String? _selectedDomain;
@@ -42,6 +51,8 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
   Set<String> _bookmarks = {};
   bool _isGeneratingDetails = false;
   String? _generatingDetailsForId;
+  String _currentEnhancementTip = '';
+  Timer? _tipRotationTimer;
   
 
   // UI Constants
@@ -56,8 +67,24 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
   @override
   void initState() {
     super.initState();
+    _checkPermissions();
     _loadBookmarks();
     _initializeFromProjectSpace();
+  }
+  
+  Future<void> _checkPermissions() async {
+    if (widget.projectSpaceId != null) {
+      final canEdit = await _invitationService.canEditProject(widget.projectSpaceId!);
+      setState(() {
+        _canEdit = canEdit;
+        _isCheckingPermissions = false;
+      });
+    } else {
+      setState(() {
+        _canEdit = true; // Allow editing if no project space (standalone usage)
+        _isCheckingPermissions = false;
+      });
+    }
   }
   
   void _initializeFromProjectSpace() {
@@ -75,6 +102,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
     _yearController.dispose();
     _customTechController.dispose();
     _customDomainController.dispose();
+    _tipRotationTimer?.cancel();
     super.dispose();
   }
 
@@ -107,6 +135,16 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
     setState(() {
       _isGeneratingDetails = true;
       _generatingDetailsForId = baseProblem.id;
+      _currentEnhancementTip = EnhancementTips.getRandomTip();
+    });
+    
+    // Start rotating tips every 2 seconds
+    _tipRotationTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (mounted && _isGeneratingDetails) {
+        setState(() {
+          _currentEnhancementTip = EnhancementTips.getRandomTip();
+        });
+      }
     });
 
     try {
@@ -138,16 +176,25 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
         ),
       );
     } finally {
+      _tipRotationTimer?.cancel();
       if (mounted) {
         setState(() {
           _isGeneratingDetails = false;
           _generatingDetailsForId = null;
+          _currentEnhancementTip = '';
         });
       }
     }
   }
   
   Future<void> _searchTopics() async {
+    if (!_canEdit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only team leaders can search for topics')),
+      );
+      return;
+    }
+    
     if (!_isFormValid()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all required fields')),
@@ -168,11 +215,15 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
       _searchResults = [];
     });
 
+    // Use custom domain if "Custom" is selected
+    final domainToSearch = _selectedDomain == 'Custom' 
+        ? _customDomainController.text.trim() 
+        : _selectedDomain!;
+    
+    // Show domain facts overlay while searching
+    DomainFactsOverlay.show(context, domainToSearch);
+
     try {
-      // Use custom domain if "Custom" is selected
-      final domainToSearch = _selectedDomain == 'Custom' 
-          ? _customDomainController.text.trim() 
-          : _selectedDomain!;
       
       debugPrint('🚀 Starting AI search for domain: $domainToSearch, year: $year, techs: ${_selectedTechs.toList()}');
       
@@ -234,7 +285,11 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isSearching = false);
+      if (mounted) {
+        setState(() => _isSearching = false);
+        // Close the facts overlay
+        DomainFactsOverlay.close(context);
+      }
     }
   }
 
@@ -259,6 +314,13 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
   }
 
   Future<void> _selectTopic(Problem p) async {
+    if (!_canEdit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only team leaders can select topics')),
+      );
+      return;
+    }
+    
     if (widget.projectSpaceId != null) {
       // Update existing project space with selected problem
       try {
@@ -364,7 +426,16 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
           )
         ] : null,
       ),
-      body: _hasSearched ? _buildResultsView() : _buildSearchForm(),
+      body: Column(
+        children: [
+          // Read-only banner for non-leaders
+          if (!_canEdit) const ReadOnlyBanner(),
+          
+          Expanded(
+            child: _hasSearched ? _buildResultsView() : _buildSearchForm(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -404,7 +475,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
               return ChoiceChip(
                 label: Text(domain),
                 selected: isSelected,
-                onSelected: (selected) {
+                onSelected: _canEdit ? (selected) {
                   setState(() {
                     _selectedDomain = selected ? domain : null;
                     // Clear custom domain when switching to non-custom domain
@@ -412,7 +483,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
                       _customDomainController.clear();
                     }
                   });
-                },
+                } : null,
                 selectedColor: const Color(0xff2563eb).withValues(alpha: 0.2),
                 labelStyle: GoogleFonts.poppins(
                   color: isSelected ? const Color(0xff2563eb) : const Color(0xff374151),
@@ -427,9 +498,10 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _customDomainController,
+              enabled: _canEdit,
               decoration: InputDecoration(
-                labelText: 'Enter Custom Domain *',
-                hintText: 'e.g., Banking, Agriculture, Real Estate',
+                labelText: _canEdit ? 'Enter Custom Domain *' : 'Custom Domain (Read-only)',
+                hintText: _canEdit ? 'e.g., Banking, Agriculture, Real Estate' : 'Only team leaders can edit',
                 prefixIcon: const Icon(Icons.domain),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -440,7 +512,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
                 ),
               ),
               style: GoogleFonts.poppins(),
-              onChanged: (_) => setState(() {}), // Trigger validation update
+              onChanged: _canEdit ? (_) => setState(() {}) : null,
             ),
           ],
           
@@ -451,10 +523,11 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
           const SizedBox(height: 12),
           TextFormField(
             controller: _yearController,
+            enabled: _canEdit,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              hintText: 'e.g., 2',
-              helperText: 'Enter 1, 2, 3, or 4',
+              hintText: _canEdit ? 'e.g., 2' : 'Read-only mode',
+              helperText: _canEdit ? 'Enter 1, 2, 3, or 4' : 'Only team leaders can edit',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -474,7 +547,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
               return FilterChip(
                 label: Text(tech),
                 selected: isSelected,
-                onSelected: (selected) {
+                onSelected: _canEdit ? (selected) {
                   setState(() {
                     if (selected) {
                       _selectedTechs.add(tech);
@@ -482,7 +555,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
                       _selectedTechs.remove(tech);
                     }
                   });
-                },
+                } : null,
                 selectedColor: const Color(0xff059669).withValues(alpha: 0.2),
                 labelStyle: GoogleFonts.poppins(
                   color: isSelected ? const Color(0xff059669) : const Color(0xff374151),
@@ -500,19 +573,20 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
               Expanded(
                 child: TextFormField(
                   controller: _customTechController,
+                  enabled: _canEdit,
                   decoration: InputDecoration(
-                    hintText: 'Add custom technology',
+                    hintText: _canEdit ? 'Add custom technology' : 'Read-only mode',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   style: GoogleFonts.poppins(),
-                  onFieldSubmitted: (_) => _addCustomTech(),
+                  onFieldSubmitted: _canEdit ? (_) => _addCustomTech() : null,
                 ),
               ),
               const SizedBox(width: 8),
               ElevatedButton(
-                onPressed: _addCustomTech,
+                onPressed: _canEdit ? _addCustomTech : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xff6366f1),
                 ),
@@ -537,7 +611,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
               children: _selectedTechs.map((tech) {
                 return Chip(
                   label: Text(tech),
-                  onDeleted: () => setState(() => _selectedTechs.remove(tech)),
+                  onDeleted: _canEdit ? () => setState(() => _selectedTechs.remove(tech)) : null,
                   backgroundColor: const Color(0xff059669).withValues(alpha: 0.1),
                   labelStyle: GoogleFonts.poppins(
                     color: const Color(0xff059669),
@@ -554,7 +628,7 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
             width: double.infinity,
             height: 56,
             child: ElevatedButton.icon(
-              onPressed: _isSearching ? null : _searchTopics,
+              onPressed: (!_canEdit || _isSearching) ? null : _searchTopics,
               icon: _isSearching
                   ? const SizedBox(
                       width: 20,
@@ -563,14 +637,16 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
                     )
                   : const Icon(Icons.search),
               label: Text(
-                _isSearching ? 'Searching Topics...' : 'Search Topics',
+                _isSearching ? 'Searching Topics...' : 
+                !_canEdit ? 'Only leaders can search topics' :
+                'Search Topics',
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _isFormValid() ? const Color(0xff2563eb) : Colors.grey,
+                backgroundColor: (_isFormValid() && _canEdit) ? const Color(0xff2563eb) : Colors.grey,
               ),
             ),
           ),
@@ -753,39 +829,72 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
                 ],
               ),
               const SizedBox(height: 16),
+              
+              // Show enhancement tip when generating details for this card
+              if (_isGeneratingDetails && _generatingDetailsForId == p.id) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xff059669).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xff059669).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xff059669)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _currentEnhancementTip,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: const Color(0xff059669),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: p.hasDetailedInfo || (_isGeneratingDetails && _generatingDetailsForId == p.id)
+                      onPressed: (!_canEdit || p.hasDetailedInfo || (_isGeneratingDetails && _generatingDetailsForId == p.id))
                           ? null
                           : () => _generateDetailedProblem(p),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: const Color(0xff059669).withValues(alpha: 0.5)),
                       ),
-                      child: _isGeneratingDetails && _generatingDetailsForId == p.id
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text(
-                              p.hasDetailedInfo ? 'AI Enhanced ✓' : 'Enhance with AI',
-                              style: TextStyle(
-                                color: p.hasDetailedInfo ? const Color(0xff059669) : const Color(0xff059669),
-                                fontSize: 12,
-                              ),
-                            ),
+                      child: Text(
+                        p.hasDetailedInfo ? 'Details Added 👍' : 'Get More Details 💬',
+                        style: TextStyle(
+                          color: p.hasDetailedInfo ? const Color(0xff059669) : const Color(0xff059669),
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => _selectTopic(p),
+                      onPressed: _canEdit ? () => _selectTopic(p) : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xff2563eb),
+                        backgroundColor: _canEdit ? const Color(0xff2563eb) : Colors.grey,
                       ),
-                      child: const Text('Select Topic'),
+                      child: Text(_canEdit ? 'Select Topic' : 'Read-only'),
                     ),
                   ),
                 ],

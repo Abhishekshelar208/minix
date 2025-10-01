@@ -56,6 +56,7 @@ dependencies:
   
   # File picker for template uploads
   file_picker: ^8.1.2
+
   
   # PPT Generation and Document Processing
   path_provider: ^2.1.4
@@ -77,6 +78,9 @@ dependencies:
   
   # Citation and Reference Management
   uuid: ^4.5.1
+
+
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -131,3 +135,10 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: 'lib/assets/images/logo.png'
+  min_sdk_android: 23 # android min sdk min:16, default 21

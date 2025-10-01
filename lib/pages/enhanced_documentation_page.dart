@@ -42,6 +42,7 @@ class _EnhancedDocumentationPageState extends State<EnhancedDocumentationPage>
   bool _isLoading = true;
   bool _isGenerating = false;
   bool _isExporting = false;
+  String _currentlyGeneratingType = '';
   
   // Project data
   Map<String, dynamic>? _projectData;
@@ -65,15 +66,15 @@ class _EnhancedDocumentationPageState extends State<EnhancedDocumentationPage>
 
   final List<String> _documentTypes = [
     'project_report',
-    'presentation', 
+    'technical_specification', 
     'synopsis',
     'user_manual',
   ];
 
   final Map<String, String> _documentTypeNames = {
     'project_report': 'Project Report',
-    'presentation': 'Presentation',
-    'synopsis': 'Synopsis',
+    'technical_specification': 'Technical Specification',
+    'synopsis': 'Project Synopsis',
     'user_manual': 'User Manual',
   };
 
@@ -174,18 +175,47 @@ class _EnhancedDocumentationPageState extends State<EnhancedDocumentationPage>
       return;
     }
 
-    setState(() => _isGenerating = true);
+    await _generateSpecificDocument(_selectedDocumentType);
+  }
+
+  Future<void> _generateSpecificDocument(String documentType) async {
+    // Auto-select appropriate template for the document type
+    DocumentTemplate? templateToUse = _selectedTemplate;
+    if (templateToUse == null || templateToUse.type != _getTemplateTypeForDocument(documentType)) {
+      final availableTemplates = _availableTemplates
+          .where((t) => t.type == _getTemplateTypeForDocument(documentType))
+          .toList();
+      
+      if (availableTemplates.isNotEmpty) {
+        templateToUse = availableTemplates.first;
+      }
+    }
+
+    if (templateToUse == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No template available for ${_documentTypeNames[documentType]}'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isGenerating = true;
+      _currentlyGeneratingType = documentType;
+    });
 
     try {
       final documentContent = await _documentationService.generateEnhancedDocument(
         projectSpaceId: widget.projectSpaceId,
         projectName: widget.projectName,
-        documentType: _selectedDocumentType,
+        documentType: documentType,
         projectData: _projectData,
         problem: _problem,
         solution: _solution,
         codeProject: _codeProject,
-        templateId: _selectedTemplate?.id,
+        templateId: templateToUse.id,
         citationStyle: _selectedCitationStyle,
       );
 
@@ -193,20 +223,23 @@ class _EnhancedDocumentationPageState extends State<EnhancedDocumentationPage>
       await _projectService.updateCurrentStep(widget.projectSpaceId, 8);
 
       setState(() {
-        _generatedDocuments[_selectedDocumentType] = documentContent;
-        _currentDocumentContent = documentContent;
+        _generatedDocuments[documentType] = documentContent;
+        // Update current document content if this is the selected type
+        if (documentType == _selectedDocumentType) {
+          _currentDocumentContent = documentContent;
+          _updateEditorContent(documentContent);
+        }
       });
 
-      // Update editor content
-      _updateEditorContent(documentContent);
-
       // Reload document versions
-      _loadDocumentVersions();
+      if (documentType == _selectedDocumentType) {
+        _loadDocumentVersions();
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ ${_documentTypeNames[_selectedDocumentType]} generated successfully!'),
+            content: Text('✅ ${_documentTypeNames[documentType]} generated successfully!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -216,13 +249,31 @@ class _EnhancedDocumentationPageState extends State<EnhancedDocumentationPage>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Failed to generate document: ${e.toString()}'),
+            content: Text('❌ Failed to generate ${_documentTypeNames[documentType]}: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
       }
     } finally {
-      setState(() => _isGenerating = false);
+      setState(() {
+        _isGenerating = false;
+        _currentlyGeneratingType = '';
+      });
+    }
+  }
+
+  String _getTemplateTypeForDocument(String documentType) {
+    switch (documentType) {
+      case 'project_report':
+        return 'report';
+      case 'technical_specification':
+        return 'specification';
+      case 'synopsis':
+        return 'synopsis';
+      case 'user_manual':
+        return 'manual';
+      default:
+        return 'report';
     }
   }
 
@@ -1214,20 +1265,34 @@ class _EnhancedDocumentationPageState extends State<EnhancedDocumentationPage>
           ..._documentTypes.map((type) {
             final typeName = _documentTypeNames[type] ?? type;
             final isGenerated = _generatedDocuments.containsKey(type);
+            final isGenerating = _isGenerating && _currentlyGeneratingType == type;
             
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
-                leading: Icon(
-                  isGenerated ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: isGenerated ? const Color(0xff059669) : const Color(0xff6b7280),
-                ),
+                leading: isGenerating 
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xff2563eb),
+                        ),
+                      )
+                    : Icon(
+                        isGenerated ? Icons.check_circle : Icons.radio_button_unchecked,
+                        color: isGenerated ? const Color(0xff059669) : const Color(0xff6b7280),
+                      ),
                 title: Text(
                   typeName,
                   style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
                 ),
                 subtitle: Text(
-                  isGenerated ? 'Generated and ready for export' : 'Not generated yet',
+                  isGenerating 
+                      ? 'Generating...' 
+                      : isGenerated 
+                          ? 'Generated and ready for export' 
+                          : 'Not generated yet',
                   style: GoogleFonts.poppins(fontSize: 12),
                 ),
                 trailing: isGenerated 
@@ -1266,7 +1331,20 @@ class _EnhancedDocumentationPageState extends State<EnhancedDocumentationPage>
                           ),
                         ],
                       )
-                    : null,
+                    : isGenerating
+                        ? null
+                        : ElevatedButton(
+                            onPressed: () => _generateSpecificDocument(type),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xff2563eb),
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(80, 32),
+                            ),
+                            child: const Text(
+                              'Generate',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
               ),
             );
           }),

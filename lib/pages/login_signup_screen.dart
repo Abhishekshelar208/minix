@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:minix/pages/home_screen.dart';
+import 'package:minix/pages/intro_screen.dart';
 
 class LoginSignupScreen extends StatefulWidget {
   const LoginSignupScreen({super.key});
@@ -14,9 +15,8 @@ class LoginSignupScreen extends StatefulWidget {
 
 class _LoginSignupScreenState extends State<LoginSignupScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final PageController _pageController = PageController();
-  int currentPage = 0;
   bool _isLoading = false;
+  bool _showIntro = true;
   
   // Profile form state
   bool _showProfileForm = false;
@@ -36,6 +36,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   }
 
 
+  void _completeIntro() {
+    setState(() {
+      _showIntro = false;
+    });
+  }
+  
   void _showProfileFormDialog() {
     setState(() {
       _showProfileForm = true;
@@ -98,22 +104,51 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         await _saveUserWithProfile(user);
         
         if (!mounted) return;
+        
+        // Hide the profile form before navigation
+        setState(() {
+          _showProfileForm = false;
+          _isLoading = false;
+        });
+        
         debugPrint('🏠 Navigating to home screen');
-        Navigator.pushReplacement(
+        // Use pushAndRemoveUntil to ensure user can't go back to login screen
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
         );
       } else {
         debugPrint('❌ Google sign-in returned null user');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sign-in failed: No user information received'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('❌ Google sign-in error: $e');
+      debugPrint('❌ Error stack trace: ${StackTrace.current}');
       if (!mounted) return;
+      
+      // Hide profile form on error
+      setState(() {
+        _showProfileForm = false;
+      });
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Google sign-in error: $e")),
+        SnackBar(
+          content: Text('Google sign-in error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
       );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -128,7 +163,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       
       if (email.isEmpty) {
         debugPrint('❌ Email is empty, cannot save user');
-        return;
+        throw Exception('Email is required for profile creation');
       }
 
       debugPrint('🔍 Checking if user already exists...');
@@ -153,199 +188,29 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         await newEntryRef.set(userData);
         debugPrint('✅ User successfully saved to database!');
         
-        // Show success message to user
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('✅ Profile saved successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+        // Also update Firebase Auth displayName
+        try {
+          await user.updateDisplayName(_nameController.text.trim());
+          await user.reload();
+          debugPrint('✅ Display name updated in Firebase Auth');
+        } catch (e) {
+          debugPrint('⚠️ Could not update display name: $e');
         }
+        
+        debugPrint('✅ Profile setup complete, ready to navigate');
       } else {
-        debugPrint('ℹ️ User already exists in database');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('👤 Welcome back!'),
-              backgroundColor: Colors.blue,
-            ),
-          );
-        }
+        debugPrint('ℹ️ User already exists in database - Welcome back!');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('❌ Error saving to database: $e');
       debugPrint('❌ Error type: ${e.runtimeType}');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Database error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      debugPrint('❌ Stack trace: $stackTrace');
+      
+      // Re-throw the error so it can be handled by the caller
+      rethrow;
     }
   }
 
-  void _nextPage() {
-    if (currentPage < 2) {
-      setState(() => currentPage++);
-      _pageController.animateToPage(
-        currentPage,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
-  List<Widget> _buildSlides(double screenWidth, double screenHeight) {
-    return [
-      _introSlide(
-        screenWidth,
-        screenHeight,
-        "Welcome to Minix",
-        "Your complete companion from idea selection to viva preparation. Never struggle with academic projects again!",
-        Icons.lightbulb_outline,
-        const Color(0xfff59e0b),
-      ),
-      _introSlide(
-        screenWidth,
-        screenHeight,
-        "Structured Project Workflow",
-        "Follow our 9-step process: Topic Selection → Roadmap → Code Generation → Documentation → Viva Prep.",
-        Icons.timeline_outlined,
-        const Color(0xff059669),
-      ),
-      _introSlide(
-        screenWidth,
-        screenHeight,
-        "Learn While Building",
-        "Get step-by-step code guidance, real-world problem solutions, and team collaboration tools all in one place.",
-        Icons.school_outlined,
-        const Color(0xff7c3aed),
-      ),
-    ];
-  }
-
-  Widget _introSlide(double screenWidth, double screenHeight, String title, String subtitle, IconData icon, Color iconColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Icon Container
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                color: iconColor.withValues(alpha: 0.3),
-                width: 2,
-              ),
-            ),
-            child: Icon(
-              icon,
-              size: 60,
-              color: iconColor,
-            ),
-          ),
-          
-          SizedBox(height: screenHeight * 0.05),
-          
-          // Title
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: screenWidth * 0.07,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xff1f2937),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          
-          SizedBox(height: screenHeight * 0.03),
-          
-          // Subtitle
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
-              fontSize: screenWidth * 0.04,
-              color: const Color(0xff6b7280),
-              height: 1.5,
-            ),
-          ),
-          
-          SizedBox(height: screenHeight * 0.08),
-          
-          // Page Indicators
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(3, (index) {
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: currentPage == index ? 24 : 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: currentPage == index 
-                    ? const Color(0xff2563eb) 
-                    : const Color(0xffe5e7eb),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              );
-            }),
-          ),
-          
-          SizedBox(height: screenHeight * 0.05),
-          
-          // Button
-          if (currentPage == 2)
-            ElevatedButton(
-              onPressed: _showProfileFormDialog,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xff2563eb),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 2,
-              ),
-              child: Text(
-                "Get Started",
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            )
-          else
-            ElevatedButton(
-              onPressed: _nextPage,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xff2563eb),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 2,
-              ),
-              child: Text(
-                "Continue",
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildProfileForm() {
     return Container(
@@ -544,18 +409,88 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
+    // Show modern intro screen first
+    if (_showIntro) {
+      return IntroScreen(
+        onComplete: _completeIntro,
+      );
+    }
 
+    // Then show login/profile form
     return Stack(
       children: [
         Scaffold(
           backgroundColor: const Color(0xfff8f9fa),
           body: SafeArea(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: _buildSlides(screenWidth, screenHeight),
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Logo
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xff2563eb).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.rocket_launch,
+                        size: 80,
+                        color: Color(0xff2563eb),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    
+                    // Welcome text
+                    Text(
+                      'Welcome to Minix',
+                      style: GoogleFonts.poppins(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xff1f2937),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Sign in to start your academic project journey',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        color: const Color(0xff6b7280),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 48),
+                    
+                    // Get Started button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: _showProfileFormDialog,
+                        icon: const Icon(Icons.login),
+                        label: Text(
+                          'Get Started',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xff2563eb),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

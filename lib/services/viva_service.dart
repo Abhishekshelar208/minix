@@ -7,6 +7,7 @@ import '../models/mock_viva_session.dart';
 import '../models/presentation_tip.dart';
 import '../models/solution.dart';
 import '../models/project_roadmap.dart';
+import '../models/problem.dart';
 import '../config/secrets.dart';
 
 class VivaService {
@@ -18,109 +19,242 @@ class VivaService {
   final List<VivaQuestion> _questionBank = [];
   final List<MockVivaSession> _mockSessions = [];
   final List<PresentationTip> _presentationTips = [];
+  bool _isInitialized = false;
 
   void initialize() {
+    if (_isInitialized) return;
+    
     _model = GenerativeModel(
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',  // Same model as documentation service
       apiKey: Secrets.geminiApiKey,
       generationConfig: GenerationConfig(
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 4096,
+        temperature: 0.6,  // Same temperature as documentation service
       ),
     );
     _initializePresentationTips();
+    _isInitialized = true;
   }
 
-  // Question Generation
+  // Question Generation with full project context
   Future<List<VivaQuestion>> generateProjectSpecificQuestions({
-    required ProjectSolution solution,
-    required ProjectRoadmap roadmap,
+    required String projectSpaceId,
+    required String projectName,
+    required Problem? problem,
+    required ProjectSolution? solution,
+    required ProjectRoadmap? roadmap,
+    required Map<String, dynamic>? projectData,
     int count = 15,
     List<VivaQuestionCategory>? categories,
     List<DifficultyLevel>? difficulties,
   }) async {
+    if (Secrets.geminiApiKey.isEmpty) {
+      throw StateError('Missing GEMINI_API_KEY. Please configure your API key.');
+    }
+
     try {
+      debugPrint('🚀 Starting viva question generation...');
+      
       final prompt = _buildQuestionGenerationPrompt(
+        projectSpaceId: projectSpaceId,
+        projectName: projectName,
+        problem: problem,
         solution: solution,
         roadmap: roadmap,
+        projectData: projectData,
         count: count,
         categories: categories,
         difficulties: difficulties,
       );
 
-      final content = [Content.text(prompt)];
-      final response = await _model.generateContent(content);
+      debugPrint('📝 Generated prompt for Gemini API (${prompt.length} chars, ~${(prompt.length / 4).round()} tokens)');
       
-      if (response.text != null) {
-        return _parseGeneratedQuestions(response.text!);
+      // Use same retry logic as documentation service
+      const maxAttempts = 3;
+      late String responseText;
+      
+      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          debugPrint('🔄 Calling Gemini API - Attempt $attempt/$maxAttempts');
+          final response = await _model
+              .generateContent([Content.text(prompt)])
+              .timeout(const Duration(minutes: 3)); // Longer timeout for complex question generation
+              
+          responseText = response.text ?? '';
+          debugPrint('📥 Received response (${responseText.length} chars)');
+          
+          if (responseText.isNotEmpty) break; // Success
+          
+          if (attempt < maxAttempts) {
+            debugPrint('⚠️ Empty response, retrying...');
+            await Future<void>.delayed(Duration(seconds: attempt * 2));
+          }
+        } catch (e) {
+          debugPrint('⚠️ Attempt $attempt failed: $e');
+          if (attempt == maxAttempts) rethrow;
+          await Future<void>.delayed(Duration(seconds: attempt * 2));
+        }
       }
-      return [];
-    } catch (e) {
-      debugPrint('Error generating questions: $e');
-      return [];
+      
+      if (responseText.isEmpty) {
+        throw StateError('Gemini returned empty response after $maxAttempts attempts');
+      }
+      
+      final questions = _parseGeneratedQuestions(responseText);
+      debugPrint('🎉 Generated ${questions.length} viva questions successfully');
+      
+      return questions;
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error in generateProjectSpecificQuestions: $e');
+      debugPrint('📍 Stack trace: $stackTrace');
+      throw Exception('Failed to generate viva questions: $e');
     }
   }
 
   String _buildQuestionGenerationPrompt({
-    required ProjectSolution solution,
-    required ProjectRoadmap roadmap,
+    required String projectSpaceId,
+    required String projectName,
+    required Problem? problem,
+    required ProjectSolution? solution,
+    required ProjectRoadmap? roadmap,
+    required Map<String, dynamic>? projectData,
     required int count,
     List<VivaQuestionCategory>? categories,
     List<DifficultyLevel>? difficulties,
   }) {
     final categoriesText = categories?.map((c) => c.displayName).join(', ') ?? 'all categories';
     final difficultiesText = difficulties?.map((d) => d.displayName).join(', ') ?? 'mixed difficulties';
+    
+    // Build comprehensive project context like documentation service
+    final context = StringBuffer();
+    
+    context.writeln('PROJECT INFORMATION:');
+    context.writeln('Project Name: $projectName');
+    
+    if (projectData != null) {
+      context.writeln('Team Name: ${projectData['teamName'] ?? 'Unknown'}');
+      context.writeln('Target Platform: ${projectData['targetPlatform'] ?? 'Unknown'}');
+      context.writeln('Year of Study: ${projectData['yearOfStudy'] ?? 'Unknown'}');
+      context.writeln('Difficulty Level: ${projectData['difficulty'] ?? 'Unknown'}');
+      
+      try {
+        final teamMembers = projectData['teamMembers'] as List<dynamic>?;
+        if (teamMembers != null && teamMembers.isNotEmpty) {
+          final memberNames = teamMembers.map((m) {
+            if (m is Map) {
+              return m['name']?.toString() ?? 'Unknown Member';
+            } else {
+              return m.toString();
+            }
+          }).join(', ');
+          context.writeln('Team Members: $memberNames');
+        }
+      } catch (e) {
+        context.writeln('Team Members: Unable to retrieve team member details');
+      }
+    }
+    
+    if (problem != null) {
+      context.writeln('\nPROBLEM STATEMENT:');
+      context.writeln('Title: ${problem.title}');
+      context.writeln('Description: ${problem.description}');
+      context.writeln('Domain: ${problem.domain}');
+      context.writeln('Platform: ${problem.platform.join(', ')}');
+      context.writeln('Skills Required: ${problem.skills.join(', ')}');
+      context.writeln('Features: ${problem.features.join(', ')}');
+      context.writeln('Beneficiaries: ${problem.beneficiaries.join(', ')}');
+    }
+    
+    if (solution != null) {
+      context.writeln('\nSOLUTION DETAILS:');
+      context.writeln('Solution Title: ${solution.title}');
+      context.writeln('Description: ${solution.description}');
+      context.writeln('Type: ${solution.type}');
+      context.writeln('Technologies: ${solution.techStack.join(', ')}');
+      context.writeln('Key Features: ${solution.keyFeatures.join(', ')}');
+      context.writeln('Difficulty: ${solution.difficulty}');
+      
+      if (solution.architecture.isNotEmpty) {
+        context.writeln('Architecture: ${solution.architecture}');
+      }
+    }
+    
+    if (roadmap != null && roadmap.tasks.isNotEmpty) {
+      context.writeln('\nPROJECT ROADMAP:');
+      context.writeln('Start Date: ${_formatDate(roadmap.startDate)}');
+      context.writeln('End Date: ${_formatDate(roadmap.endDate)}');
+      context.writeln('Total Tasks: ${roadmap.totalTasksCount}');
+      context.writeln('Completed Tasks: ${roadmap.completedTasksCount}');
+      context.writeln('Progress: ${(roadmap.completedTasksCount / roadmap.totalTasksCount * 100).toStringAsFixed(1)}%');
+      
+      // Only include key high-priority tasks to reduce prompt size
+      context.writeln('\nKey Tasks:');
+      final keyTasks = roadmap.tasks
+          .where((task) => task.priority == 'High' || task.priority == 'Critical')
+          .take(5)
+          .toList();
+      
+      if (keyTasks.isEmpty) {
+        // If no high priority tasks, take first 5
+        for (final task in roadmap.tasks.take(5)) {
+          context.writeln('- ${task.title} (${task.category})');
+        }
+      } else {
+        for (final task in keyTasks) {
+          context.writeln('- ${task.title} (${task.category})');
+        }
+      }
+      
+      if (roadmap.tasks.length > 5) {
+        context.writeln('... and ${roadmap.tasks.length - (keyTasks.isEmpty ? 5 : keyTasks.length)} more tasks');
+      }
+    }
 
     return '''
-You are an expert examiner conducting project vivas for engineering students. Generate $count high-quality viva questions for the following project:
+You are an expert examiner conducting project vivas for engineering students. Generate $count high-quality, realistic viva questions for the following project:
 
-PROJECT DETAILS:
-Title: ${solution.title}
-Description: ${solution.description}
-Technologies: ${solution.techStack.join(', ')}
-Features: ${solution.keyFeatures.join(', ')}
-Difficulty: ${solution.difficulty}
+${context.toString()}
 
-PROJECT ROADMAP:
-${roadmap.tasks.map((t) => '- ${t.title}: ${t.description}').join('\n')}
-
-REQUIREMENTS:
+QUESTION GENERATION REQUIREMENTS:
 - Focus on categories: $categoriesText
 - Difficulty levels: $difficultiesText
-- Mix of technical, conceptual, and practical questions
-- Include follow-up questions where appropriate
-- Provide comprehensive suggested answers
+- Create questions that professors would realistically ask during a project viva
+- Mix technical depth with practical implementation understanding
+- Include both theoretical knowledge and hands-on experience questions
+- Cover problem-solving approach, technology choices, and implementation challenges
+- Include questions about future improvements and learning outcomes
 
 For each question, provide:
-1. The main question
-2. Category (technical, conceptual, implementation, projectSpecific, architecture, testing, deployment, problemSolving, futureEnhancements, learningOutcome)
-3. Difficulty level (easy, medium, hard, expert)
-4. 2-3 possible answer approaches
-5. A detailed suggested answer
-6. Relevant keywords
-7. Estimated time to answer (1-5 minutes)
-8. Optional context or background
-9. 1-2 follow-up questions
+1. A clear, specific question that tests understanding
+2. Category classification
+3. Appropriate difficulty level
+4. Multiple possible answer approaches
+5. A comprehensive suggested answer with explanations
+6. Relevant keywords for answer evaluation
+7. Realistic time estimation
+8. Context or background if needed
+9. Follow-up questions to deepen understanding
 
-Format as JSON array:
+Return ONLY a valid JSON array in this exact format:
 [
   {
-    "question": "Main question text",
-    "category": "technical",
-    "difficulty": "medium",
-    "possibleAnswers": ["Approach 1", "Approach 2", "Approach 3"],
-    "suggestedAnswer": "Comprehensive answer with explanation",
-    "keywords": ["keyword1", "keyword2", "keyword3"],
+    "question": "Detailed question about the project",
+    "category": "technical|conceptual|implementation|projectSpecific|architecture|testing|deployment|problemSolving|futureEnhancements|learningOutcome",
+    "difficulty": "easy|medium|hard|expert",
+    "possibleAnswers": ["Answer approach 1", "Answer approach 2", "Answer approach 3"],
+    "suggestedAnswer": "Comprehensive answer with detailed explanation",
+    "keywords": ["keyword1", "keyword2", "keyword3", "keyword4"],
     "estimatedTimeMinutes": 3,
-    "context": "Optional background context",
-    "followUpQuestions": ["Follow-up 1", "Follow-up 2"]
+    "context": "Background context for the question (optional)",
+    "followUpQuestions": ["Follow-up question 1", "Follow-up question 2"]
   }
 ]
 
-Generate questions that would realistically be asked by professors during a project viva, covering both theoretical knowledge and practical implementation aspects.
+Generate questions that demonstrate deep project understanding and practical implementation knowledge.
 ''';
+  }
+  
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   List<VivaQuestion> _parseGeneratedQuestions(String responseText) {

@@ -286,6 +286,8 @@ class DocumentationService {
     switch (documentType) {
       case 'project_report':
         return _generateProjectReportPrompt(projectContext, templateUrl);
+      case 'technical_specification':
+        return _generateTechnicalSpecificationPrompt(projectContext, templateUrl);
       case 'presentation':
         return _generatePresentationPrompt(projectContext, templateUrl);
       case 'synopsis':
@@ -299,61 +301,93 @@ class DocumentationService {
 
   String _generateProjectReportPrompt(String projectContext, String? templateUrl) {
     return '''
-Generate a comprehensive technical project report based on the following project information:
+Generate a CONCISE technical project report (2-3 pages) based on the following project information:
 
 $projectContext
 
 ${templateUrl != null ? 'Please follow the format and structure from the uploaded template.' : 'Use standard academic project report format.'}
 
-REPORT REQUIREMENTS:
-1. **Title Page**: Project title, team members, college/university details
-2. **Abstract**: Brief summary of the project (150-200 words)
-3. **Table of Contents**: Organized section listing with page numbers
-4. **Introduction**: 
-   - Background and motivation
-   - Problem statement
-   - Objectives and scope
-   - Project overview
-5. **Literature Review**: 
-   - Existing systems analysis
-   - Technology research
-   - Comparative study
-6. **System Analysis and Design**:
-   - Requirements analysis (functional and non-functional)
-   - System architecture
-   - Database design
-   - UI/UX design
-7. **Implementation**:
-   - Technology stack details
-   - Development methodology
-   - Module-wise implementation
-   - Code snippets and explanations
-8. **Testing and Validation**:
-   - Testing strategies
-   - Test cases and results
-   - Performance analysis
-9. **Results and Discussion**:
-   - Project deliverables
-   - Screenshots and demonstrations
-   - Performance metrics
-   - Challenges faced and solutions
-10. **Conclusion and Future Work**:
-    - Summary of achievements
-    - Future enhancements
-    - Lessons learned
-11. **References**: Academic and technical references
-12. **Appendices**: Additional code, diagrams, or documentation
+REPORT REQUIREMENTS (Keep it BRIEF and CONCISE - 2-3 pages maximum):
+
+1. **Title & Team Information** (2-3 lines)
+   - Project title, team members
+
+2. **Abstract** (100-150 words)
+   - Brief project overview and objectives
+
+3. **Introduction** (1 paragraph)
+   - Problem statement and motivation
+   - Project objectives
+
+4. **System Design** (1-2 paragraphs)
+   - Key architecture components
+   - Technology stack overview
+
+5. **Implementation** (1-2 paragraphs)
+   - Main features developed
+   - Development approach
+
+6. **Results** (1 paragraph)
+   - Key achievements and deliverables
+
+7. **Conclusion** (1 paragraph)
+   - Summary and future scope
 
 FORMAT REQUIREMENTS:
-- Professional academic writing style
-- Proper headings and subheadings
-- Technical diagrams and flowcharts descriptions
-- Code snippets with explanations
-- Screenshots placement suggestions
-- Minimum 15-20 pages content
-- IEEE or standard academic format
+- Professional but CONCISE writing
+- Clear headings
+- MAXIMUM 2-3 pages of content
+- Focus on key points only
+- No lengthy explanations
 
-Generate the complete report content with detailed sections. Focus on technical accuracy and professional presentation.
+Generate a brief, focused report. Keep each section SHORT and to the point.
+''';
+  }
+
+  String _generateTechnicalSpecificationPrompt(String projectContext, String? templateUrl) {
+    return '''
+Generate a CONCISE technical specification document (2-3 pages) based on the following project information:
+
+$projectContext
+
+${templateUrl != null ? 'Please follow the format and structure from the uploaded template.' : 'Use standard technical specification format.'}
+
+TECHNICAL SPECIFICATION REQUIREMENTS (Keep it BRIEF - 2-3 pages maximum):
+
+**1. System Overview** (2-3 sentences)
+- System purpose and key goals
+
+**2. Architecture** (1 paragraph)
+- High-level architecture description
+- Main components and their interactions
+
+**3. Technology Stack** (bullet points)
+- Frontend: [list technologies]
+- Backend: [list technologies]
+- Database: [list systems]
+- Third-party services: [key integrations]
+
+**4. System Requirements** (brief list)
+- Hardware/software needs
+- Platform compatibility
+- Performance expectations
+
+**5. Security** (1 paragraph)
+- Authentication and authorization approach
+- Data protection measures
+
+**6. Deployment** (1 paragraph)
+- Deployment environment
+- Key configurations
+
+FORMAT REQUIREMENTS:
+- CONCISE technical writing
+- Clear bullet points
+- MAXIMUM 2-3 pages
+- Focus on essential specs only
+- No lengthy details
+
+Generate a brief, focused technical specification. Keep it SHORT and clear.
 ''';
   }
 
@@ -452,150 +486,94 @@ Generate detailed content for each slide with speaker notes and visual element s
 
   String _generateSynopsisPrompt(String projectContext, String? templateUrl) {
     return '''
-Generate a concise project synopsis based on the following project information:
+Generate a BRIEF project synopsis (2-3 pages) based on the following project information:
 
 $projectContext
 
 ${templateUrl != null ? 'Follow the format structure from the uploaded template.' : 'Use standard academic synopsis format.'}
 
-SYNOPSIS REQUIREMENTS (3-4 pages):
+SYNOPSIS REQUIREMENTS (Keep it CONCISE - 2-3 pages maximum):
 
-**1. Project Title and Details**
-- Complete project title
-- Team information
-- Academic details
+**1. Title & Team** (2-3 lines)
+- Project title and team members
 
-**2. Abstract (200-250 words)**
-- Project overview
-- Key objectives
-- Methodology
-- Expected outcomes
+**2. Abstract** (100-150 words)
+- Brief project overview
+- Key objectives and outcomes
 
-**3. Introduction (300-400 words)**
-- Background and motivation
+**3. Introduction** (1 paragraph)
 - Problem statement
-- Significance of the project
-- Target users/beneficiaries
+- Why this project matters
 
-**4. Objectives**
-- Primary objectives
-- Secondary objectives
-- Success criteria
+**4. Objectives** (bullet points)
+- 3-5 main objectives
 
-**5. Methodology (400-500 words)**
-- Approach and methodology
+**5. Methodology** (1-2 paragraphs)
 - Technology stack
-- Development phases
-- Testing strategy
+- Development approach
+- Key phases
 
-**6. Expected Outcomes**
-- Deliverables
-- Benefits to stakeholders
-- Performance expectations
-- Impact assessment
+**6. Expected Outcomes** (1 paragraph)
+- Main deliverables
+- Expected benefits
 
-**7. Timeline**
-- Project phases
-- Milestone schedule
-- Resource requirements
-
-**8. Conclusion**
+**7. Conclusion** (2-3 sentences)
 - Project significance
-- Expected contribution
 - Future scope
 
 FORMAT REQUIREMENTS:
-- Formal academic writing
+- Formal but BRIEF writing
+- MAXIMUM 2-3 pages
+- Focus on essential information
 - Clear and concise language
-- Proper citations if applicable
-- Professional formatting
-- Maximum 4 pages
-- Standard margins and fonts
 
-Generate a comprehensive yet concise synopsis that clearly communicates the project's value and technical approach.
+Generate a brief synopsis. Keep each section SHORT and focused.
 ''';
   }
 
   String _generateUserManualPrompt(String projectContext, String? templateUrl) {
     return '''
-Generate a comprehensive user manual based on the following project information:
+Generate a BRIEF user manual (2-3 pages) based on the following project information:
 
 $projectContext
 
 ${templateUrl != null ? 'Adapt the content structure to match the uploaded template format.' : 'Create a standard user manual format.'}
 
-USER MANUAL STRUCTURE:
+USER MANUAL STRUCTURE (Keep it CONCISE - 2-3 pages maximum):
 
-**1. Introduction**
-- Welcome message
-- Purpose of the application
-- Target audience
-- What this manual covers
+**1. Introduction** (2-3 sentences)
+- Welcome and purpose of the application
 
-**2. System Requirements**
-- Hardware requirements
-- Software requirements
-- Browser compatibility (if web-based)
-- Mobile device specifications (if mobile app)
+**2. System Requirements** (bullet points)
+- Basic hardware/software needs
+- Platform compatibility
 
-**3. Installation Guide**
-- Download instructions
-- Installation steps
-- Initial setup
-- Account creation
+**3. Getting Started** (1 paragraph)
+- Installation/setup basics
+- First launch steps
 
-**4. Getting Started**
-- First login process
-- Interface overview
-- Navigation basics
-- User dashboard tour
+**4. Main Features** (1-2 paragraphs)
+- Overview of key features
+- Basic usage instructions
 
-**5. Core Features Guide**
-- Feature-by-feature instructions
-- Step-by-step procedures
-- Screenshots descriptions
-- Tips and best practices
+**5. Common Tasks** (bullet points)
+- 3-5 most common user tasks
+- Brief step-by-step for each
 
-**6. Advanced Features**
-- Advanced functionality
-- Customization options
-- Settings and preferences
-- Integration capabilities
+**6. Troubleshooting** (bullet points)
+- 2-3 common issues and quick fixes
 
-**7. Troubleshooting**
-- Common issues and solutions
-- Error messages and fixes
-- Performance optimization
-- FAQ section
-
-**8. Security and Privacy**
-- Data protection measures
-- User privacy settings
-- Security best practices
-- Account security
-
-**9. Support and Contact**
-- Help resources
-- Contact information
-- Feedback channels
-- Update notifications
-
-**10. Appendices**
-- Glossary of terms
-- Keyboard shortcuts
-- Version history
-- Additional resources
+**7. Support** (2-3 lines)
+- Where to get help
 
 WRITING REQUIREMENTS:
-- Clear, simple language
-- Step-by-step instructions
+- Clear, SIMPLE language
 - User-friendly tone
-- Logical organization
-- Visual element placeholders
-- Comprehensive coverage
-- Practical examples
+- MAXIMUM 2-3 pages
+- Focus on essential features only
+- Brief instructions
 
-Generate detailed user manual content that helps users effectively use the application from basic to advanced levels.
+Generate a brief, user-friendly manual. Keep it SHORT and easy to follow.
 ''';
   }
 
@@ -1158,49 +1136,141 @@ Generate the complete document following ALL template requirements and formattin
     required ProjectSolution? solution,
   }) async {
     try {
-      debugPrint('🎨 Creating professional PDF layout...');
+      debugPrint('🎨 Creating simple text PDF...');
       
       final pdf = pw.Document();
       
-      // Load custom fonts for professional appearance
-      final regularFont = await PdfGoogleFonts.openSansRegular();
-      final boldFont = await PdfGoogleFonts.openSansBold();
-      final titleFont = await PdfGoogleFonts.playfairDisplayBold();
+      // Load simple font
+      final regularFont = await PdfGoogleFonts.robotoRegular();
+      final boldFont = await PdfGoogleFonts.robotoBold();
       
+      // Split content into paragraphs
+      final lines = content.split('\n').where((line) => line.trim().isNotEmpty).toList();
       
-      // Parse content into sections
-      final sections = _parseContentSections(content);
+      // Build pages with simple text layout
+      final widgets = <pw.Widget>[];
       
-      // Create cover page
-      pdf.addPage(_createCoverPage(
-        projectName: projectName,
-        documentType: documentType,
-        projectData: projectData,
-        problem: problem,
-        solution: solution,
-        titleFont: titleFont,
-        regularFont: regularFont,
-      ));
+      // Add document title
+      widgets.add(
+        pw.Text(
+          _getDocumentTypeTitle(documentType),
+          style: pw.TextStyle(
+            font: boldFont,
+            fontSize: 20,
+          ),
+        ),
+      );
+      widgets.add(pw.SizedBox(height: 10));
       
-      // Add table of contents
-      pdf.addPage(_createTableOfContents(
-        sections: sections,
-        titleFont: titleFont,
-        regularFont: regularFont,
-      ));
+      // Add project name
+      widgets.add(
+        pw.Text(
+          projectName,
+          style: pw.TextStyle(
+            font: boldFont,
+            fontSize: 16,
+          ),
+        ),
+      );
+      widgets.add(pw.SizedBox(height: 5));
       
-      // Add content pages
-      for (int i = 0; i < sections.length; i++) {
-        final section = sections[i];
-        pdf.addPage(_createContentPage(
-          section: section,
-          pageNumber: i + 3, // After cover and TOC
-          totalSections: sections.length,
-          titleFont: titleFont,
-          regularFont: regularFont,
-          boldFont: boldFont,
-        ));
+      // Add date
+      widgets.add(
+        pw.Text(
+          'Generated: ${DateTime.now().toString().split(' ')[0]}',
+          style: pw.TextStyle(
+            font: regularFont,
+            fontSize: 10,
+          ),
+        ),
+      );
+      widgets.add(pw.SizedBox(height: 20));
+      widgets.add(pw.Divider());
+      widgets.add(pw.SizedBox(height: 20));
+      
+      // Add all content lines
+      for (final line in lines) {
+        final trimmedLine = line.trim();
+        
+        if (trimmedLine.isEmpty) {
+          widgets.add(pw.SizedBox(height: 10));
+        } else if (trimmedLine.startsWith('# ')) {
+          // Main heading
+          widgets.add(pw.SizedBox(height: 15));
+          widgets.add(
+            pw.Text(
+              trimmedLine.substring(2),
+              style: pw.TextStyle(
+                font: boldFont,
+                fontSize: 16,
+              ),
+            ),
+          );
+          widgets.add(pw.SizedBox(height: 8));
+        } else if (trimmedLine.startsWith('## ')) {
+          // Sub-heading
+          widgets.add(pw.SizedBox(height: 10));
+          widgets.add(
+            pw.Text(
+              trimmedLine.substring(3),
+              style: pw.TextStyle(
+                font: boldFont,
+                fontSize: 14,
+              ),
+            ),
+          );
+          widgets.add(pw.SizedBox(height: 5));
+        } else if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**')) {
+          // Bold text
+          widgets.add(
+            pw.Text(
+              trimmedLine.replaceAll('**', ''),
+              style: pw.TextStyle(
+                font: boldFont,
+                fontSize: 12,
+              ),
+            ),
+          );
+          widgets.add(pw.SizedBox(height: 3));
+        } else if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('• ')) {
+          // Bullet point
+          widgets.add(
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(left: 15),
+              child: pw.Text(
+                '• ${trimmedLine.substring(2)}',
+                style: pw.TextStyle(
+                  font: regularFont,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          );
+          widgets.add(pw.SizedBox(height: 3));
+        } else {
+          // Normal text
+          widgets.add(
+            pw.Text(
+              trimmedLine,
+              style: pw.TextStyle(
+                font: regularFont,
+                fontSize: 11,
+                lineSpacing: 1.5,
+              ),
+            ),
+          );
+          widgets.add(pw.SizedBox(height: 5));
+        }
       }
+      
+      // Create multi-page document
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(40),
+          build: (context) => widgets,
+        ),
+      );
       
       // Save PDF to device
       final directory = await getApplicationDocumentsDirectory();
@@ -1209,339 +1279,22 @@ Generate the complete document following ALL template requirements and formattin
       
       await file.writeAsBytes(await pdf.save());
       
-      debugPrint('✅ Professional PDF saved: ${file.path}');
+      debugPrint('✅ Simple PDF saved: ${file.path}');
       return file.path;
       
     } catch (e, stackTrace) {
-      debugPrint('❌ Error creating professional PDF: $e');
+      debugPrint('❌ Error creating PDF: $e');
       debugPrint('📍 Stack trace: $stackTrace');
       rethrow;
     }
-  }
-  
-  /// Parse content into structured sections
-  List<DocumentSection> _parseContentSections(String content) {
-    final sections = <DocumentSection>[];
-    final lines = content.split('\n');
-    
-    String currentTitle = '';
-    List<String> currentContent = [];
-    
-    for (final line in lines) {
-      if (line.startsWith('# ')) {
-        // Save previous section
-        if (currentTitle.isNotEmpty) {
-          sections.add(DocumentSection(
-            title: currentTitle,
-            content: currentContent.join('\n').trim(),
-          ));
-        }
-        
-        // Start new section
-        currentTitle = line.substring(2).trim();
-        currentContent = [];
-      } else {
-        currentContent.add(line);
-      }
-    }
-    
-    // Add final section
-    if (currentTitle.isNotEmpty) {
-      sections.add(DocumentSection(
-        title: currentTitle,
-        content: currentContent.join('\n').trim(),
-      ));
-    }
-    
-    return sections;
-  }
-  
-  /// Create professional cover page
-  pw.Page _createCoverPage({
-    required String projectName,
-    required String documentType,
-    required Map<String, dynamic>? projectData,
-    required Problem? problem,
-    required ProjectSolution? solution,
-    required pw.Font titleFont,
-    required pw.Font regularFont,
-  }) {
-    return pw.Page(
-      pageFormat: PdfPageFormat.a4,
-      build: (pw.Context context) {
-        return pw.Container(
-          padding: const pw.EdgeInsets.all(40),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Spacer(flex: 2),
-              
-              // Title
-              pw.Container(
-                width: double.infinity,
-                child: pw.Text(
-                  projectName,
-                  style: pw.TextStyle(
-                    font: titleFont,
-                    fontSize: 32,
-                    color: PdfColors.blue800,
-                  ),
-                  textAlign: pw.TextAlign.center,
-                ),
-              ),
-              
-              pw.SizedBox(height: 20),
-              
-              // Document type
-              pw.Container(
-                width: double.infinity,
-                child: pw.Text(
-                  _getDocumentTypeTitle(documentType),
-                  style: pw.TextStyle(
-                    font: regularFont,
-                    fontSize: 18,
-                    color: PdfColors.grey700,
-                  ),
-                  textAlign: pw.TextAlign.center,
-                ),
-              ),
-              
-              pw.Spacer(flex: 1),
-              
-              // Project details box
-              pw.Container(
-                width: double.infinity,
-                padding: const pw.EdgeInsets.all(30),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.blue300, width: 2),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
-                  color: PdfColors.blue50,
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    if (projectData != null) ..._buildProjectDetails(projectData, regularFont),
-                    if (problem != null) ..._buildProblemSummary(problem, regularFont),
-                    if (solution != null) ..._buildSolutionSummary(solution, regularFont),
-                  ],
-                ),
-              ),
-              
-              pw.Spacer(flex: 2),
-              
-              // Footer
-              pw.Container(
-                width: double.infinity,
-                child: pw.Text(
-                  'Generated on ${DateTime.now().toString().split(' ')[0]}',
-                  style: pw.TextStyle(
-                    font: regularFont,
-                    fontSize: 12,
-                    color: PdfColors.grey600,
-                  ),
-                  textAlign: pw.TextAlign.center,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-  
-  /// Create table of contents
-  pw.Page _createTableOfContents({
-    required List<DocumentSection> sections,
-    required pw.Font titleFont,
-    required pw.Font regularFont,
-  }) {
-    return pw.Page(
-      pageFormat: PdfPageFormat.a4,
-      build: (pw.Context context) {
-        return pw.Container(
-          padding: const pw.EdgeInsets.all(40),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'Table of Contents',
-                style: pw.TextStyle(
-                  font: titleFont,
-                  fontSize: 24,
-                  color: PdfColors.blue800,
-                ),
-              ),
-              
-              pw.SizedBox(height: 30),
-              
-              ...sections.asMap().entries.map((entry) {
-                final index = entry.key;
-                final section = entry.value;
-                
-                return pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 12),
-                  child: pw.Row(
-                    children: [
-                      pw.Text(
-                        '${index + 1}. ${section.title}',
-                        style: pw.TextStyle(
-                          font: regularFont,
-                          fontSize: 14,
-                        ),
-                      ),
-                      pw.Expanded(
-                        child: pw.Container(
-                          margin: const pw.EdgeInsets.symmetric(horizontal: 10),
-                          child: pw.Divider(
-                            color: PdfColors.grey400,
-                            thickness: 1,
-                          ),
-                        ),
-                      ),
-                      pw.Text(
-                        '${index + 3}', // Page number (after cover and TOC)
-                        style: pw.TextStyle(
-                          font: regularFont,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ),
-        );
-      },
-    );
-  }
-  
-  /// Create content page
-  pw.Page _createContentPage({
-    required DocumentSection section,
-    required int pageNumber,
-    required int totalSections,
-    required pw.Font titleFont,
-    required pw.Font regularFont,
-    required pw.Font boldFont,
-  }) {
-    return pw.Page(
-      pageFormat: PdfPageFormat.a4,
-      build: (pw.Context context) {
-        return pw.Container(
-          padding: const pw.EdgeInsets.all(40),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Header
-              pw.Container(
-                width: double.infinity,
-                padding: const pw.EdgeInsets.only(bottom: 20),
-                decoration: const pw.BoxDecoration(
-                  border: pw.Border(
-                    bottom: pw.BorderSide(color: PdfColors.blue300, width: 2),
-                  ),
-                ),
-                child: pw.Text(
-                  section.title,
-                  style: pw.TextStyle(
-                    font: titleFont,
-                    fontSize: 20,
-                    color: PdfColors.blue800,
-                  ),
-                ),
-              ),
-              
-              pw.SizedBox(height: 20),
-              
-              // Content
-              pw.Expanded(
-                child: pw.Text(
-                  section.content,
-                  style: pw.TextStyle(
-                    font: regularFont,
-                    fontSize: 12,
-                    lineSpacing: 1.5,
-                  ),
-                  textAlign: pw.TextAlign.justify,
-                ),
-              ),
-              
-              // Footer
-              pw.Container(
-                width: double.infinity,
-                padding: const pw.EdgeInsets.only(top: 20),
-                decoration: const pw.BoxDecoration(
-                  border: pw.Border(
-                    top: pw.BorderSide(color: PdfColors.grey300, width: 1),
-                  ),
-                ),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      'Generated by Minix',
-                      style: pw.TextStyle(
-                        font: regularFont,
-                        fontSize: 10,
-                        color: PdfColors.grey600,
-                      ),
-                    ),
-                    pw.Text(
-                      'Page $pageNumber',
-                      style: pw.TextStyle(
-                        font: regularFont,
-                        fontSize: 10,
-                        color: PdfColors.grey600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-  
-  /// Helper methods for cover page content
-  List<pw.Widget> _buildProjectDetails(Map<String, dynamic> projectData, pw.Font font) {
-    return [
-      pw.Text('Project Details', style: pw.TextStyle(font: font, fontSize: 16, fontWeight: pw.FontWeight.bold)),
-      pw.SizedBox(height: 10),
-      pw.Text('Team: ${projectData['teamName'] ?? 'Unknown'}', style: pw.TextStyle(font: font, fontSize: 12)),
-      pw.Text('Platform: ${projectData['targetPlatform'] ?? 'Unknown'}', style: pw.TextStyle(font: font, fontSize: 12)),
-      pw.Text('Year of Study: ${projectData['yearOfStudy'] ?? 'Unknown'}', style: pw.TextStyle(font: font, fontSize: 12)),
-      pw.SizedBox(height: 15),
-    ];
-  }
-  
-  List<pw.Widget> _buildProblemSummary(Problem problem, pw.Font font) {
-    return [
-      pw.Text('Problem Statement', style: pw.TextStyle(font: font, fontSize: 16, fontWeight: pw.FontWeight.bold)),
-      pw.SizedBox(height: 10),
-      pw.Text('Domain: ${problem.domain}', style: pw.TextStyle(font: font, fontSize: 12)),
-      pw.Text('Difficulty: ${problem.difficulty}', style: pw.TextStyle(font: font, fontSize: 12)),
-      pw.Text('Scope: ${problem.scope}', style: pw.TextStyle(font: font, fontSize: 12)),
-      pw.SizedBox(height: 15),
-    ];
-  }
-  
-  List<pw.Widget> _buildSolutionSummary(ProjectSolution solution, pw.Font font) {
-    return [
-      pw.Text('Solution Approach', style: pw.TextStyle(font: font, fontSize: 16, fontWeight: pw.FontWeight.bold)),
-      pw.SizedBox(height: 10),
-      pw.Text('Type: ${solution.type}', style: pw.TextStyle(font: font, fontSize: 12)),
-      pw.Text('Technologies: ${solution.techStack.take(3).join(', ')}', style: pw.TextStyle(font: font, fontSize: 12)),
-      pw.Text('Difficulty: ${solution.difficulty}', style: pw.TextStyle(font: font, fontSize: 12)),
-    ];
   }
   
   String _getDocumentTypeTitle(String documentType) {
     switch (documentType) {
       case 'project_report':
         return 'Technical Project Report';
+      case 'technical_specification':
+        return 'Technical Specification Document';
       case 'presentation':
         return 'Project Presentation';
       case 'synopsis':
@@ -1552,15 +1305,4 @@ Generate the complete document following ALL template requirements and formattin
         return 'Project Document';
     }
   }
-}
-
-/// Helper class for document sections
-class DocumentSection {
-  final String title;
-  final String content;
-  
-  DocumentSection({
-    required this.title,
-    required this.content,
-  });
 }

@@ -5,7 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:minix/pages/splash_screen.dart';
 import 'package:minix/pages/project_space_creation_page.dart';
 import 'package:minix/pages/project_steps_page.dart';
+import 'package:minix/pages/widgets/invitation_banner.dart';
+import 'package:minix/pages/teams_page.dart';
 import 'package:minix/services/project_service.dart';
+import 'package:minix/services/invitation_service.dart';
+import 'package:minix/services/user_profile_service.dart';
 import 'package:minix/models/project_roadmap.dart';
 import 'package:minix/models/task.dart';
 
@@ -19,10 +23,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final ProjectService _projectService = ProjectService();
+  final InvitationService _invitationService = InvitationService();
+  final UserProfileService _userProfileService = UserProfileService();
   
   List<ProjectSpaceSummary> _projectSpaces = [];
   ProjectRoadmap? _currentRoadmap;
   Map<String, int> _projectStats = {};
+  Map<String, dynamic>? _userProfile;
   bool _isLoadingData = true;
   bool _isUpdatingTask = false;
   Timer? _refreshTimer;
@@ -35,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadUserProfile();
     _loadHomeData();
     
     // Also schedule a refresh after the widget is fully built
@@ -46,7 +54,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Users can manually refresh using pull-to-refresh or refresh buttons
   }
   
+  Future<void> _loadUserProfile() async {
+    try {
+      final profile = await _userProfileService.getUserProfile();
+      if (mounted) {
+        setState(() {
+          _userProfile = profile;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user profile: $e');
+    }
+  }
+  
   Widget _buildProfileHeaderCard(User? user) {
+    // Use name from database profile if available, otherwise fall back to Firebase Auth
+    final displayName = _userProfile?['Name'] as String? ?? user?.displayName ?? 'Student';
+    
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -90,10 +114,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           user!.photoURL!,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
-                            return _buildDefaultAvatar(user.displayName);
+                            return _buildDefaultAvatar(displayName);
                           },
                         )
-                      : _buildDefaultAvatar(user?.displayName),
+                      : _buildDefaultAvatar(displayName),
                 ),
               ),
               const SizedBox(width: 20),
@@ -102,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      user?.displayName ?? 'Student',
+                      displayName,
                       style: GoogleFonts.poppins(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -233,8 +257,52 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
   
+  String _getFirstName(User? user) {
+    // First try to get name from database profile
+    if (_userProfile != null && _userProfile!['Name'] != null) {
+      final fullName = _userProfile!['Name'] as String;
+      if (fullName.isNotEmpty) {
+        final parts = fullName.split(' ');
+        if (parts.isNotEmpty && parts[0].isNotEmpty) {
+          return parts[0];
+        }
+      }
+    }
+    
+    if (user == null) return 'Student';
+    
+    // Try to get first name from Firebase Auth displayName
+    if (user.displayName != null && user.displayName!.isNotEmpty) {
+      // Split by space and get first part
+      final parts = user.displayName!.split(' ');
+      if (parts.isNotEmpty && parts[0].isNotEmpty) {
+        return parts[0];
+      }
+    }
+    
+    // Fallback to email username (part before @)
+    if (user.email != null && user.email!.isNotEmpty) {
+      final emailParts = user.email!.split('@');
+      if (emailParts.isNotEmpty && emailParts[0].isNotEmpty) {
+        // Capitalize first letter
+        final username = emailParts[0];
+        return username[0].toUpperCase() + username.substring(1);
+      }
+    }
+    
+    // Final fallback
+    return 'Student';
+  }
+  
   Widget _buildAcademicInfoCard() {
-    // TODO: Fetch user's academic info from profile data stored during signup
+    // Get real data from user profile
+    final branch = _userProfile?['Branch'] as String?;
+    final year = _userProfile?['Year'] as String?;
+    
+    final branchName = _userProfileService.getBranchName(branch);
+    final yearName = _userProfileService.getYearName(year);
+    final skillLevel = _userProfileService.getSkillLevel(year);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -279,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                     ),
                     Text(
-                      'Your educational details',
+                      _userProfile != null ? 'Your educational details' : 'Loading...',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         color: const Color(0xff6b7280),
@@ -291,11 +359,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ],
           ),
           const SizedBox(height: 20),
-          _buildInfoRow(Icons.business, 'Branch', 'Computer Engineering', const Color(0xff7c3aed)),
+          _buildInfoRow(Icons.business, 'Branch', branchName, const Color(0xff7c3aed)),
           const SizedBox(height: 16),
-          _buildInfoRow(Icons.calendar_view_day, 'Academic Year', 'Second Year (SE)', const Color(0xff059669)),
+          _buildInfoRow(Icons.calendar_view_day, 'Academic Year', yearName, const Color(0xff059669)),
           const SizedBox(height: 16),
-          _buildInfoRow(Icons.trending_up, 'Skill Level', 'Intermediate', const Color(0xfff59e0b)),
+          _buildInfoRow(Icons.trending_up, 'Skill Level', skillLevel, const Color(0xfff59e0b)),
         ],
       ),
     );
@@ -826,6 +894,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             
             const SizedBox(height: 24),
             
+            // Invitation Banner (shows if user has pending invitations)
+            InvitationBanner(
+              invitationService: _invitationService,
+              onInvitationAccepted: () {
+                // Refresh home screen data when invitation is accepted
+                _loadHomeData();
+              },
+            ),
+            
+            const SizedBox(height: 24),
+            
             // Quick Stats Dashboard
             _buildQuickStatsCards(),
             
@@ -855,6 +934,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Invitation Banner for Projects Page
+            InvitationBanner(
+              invitationService: _invitationService,
+              onInvitationAccepted: () => _loadHomeData(),
+            ),
+            
+            const SizedBox(height: 20),
+            
             // Page Header
             Row(
               children: [
@@ -1105,16 +1192,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
   
   Widget _buildTeamsPage() {
-    return const Center(
-      child: Text(
-        'Teams Page\nComing Soon',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 18,
-          color: Colors.grey,
-        ),
-      ),
-    );
+    return const TeamsPage();
   }
   
   Widget _buildProfilePage() {
@@ -1770,7 +1848,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               if (user != null)
                 Text(
-                  "Welcome back, ${user.displayName?.split(' ')[0] ?? 'Student'}!",
+                  "Welcome back, ${_getFirstName(user)}!",
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -2364,7 +2442,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildProjectSpaceCard(ProjectSpaceSummary space) {
     final DateTime created = space.createdAt;
     final String timeAgo = _getTimeAgo(created);
-    final double progressPercentage = (space.currentStep / 4.0) * 100;
+    final double progressPercentage = (space.currentStep / 8.0) * 100;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -2486,7 +2564,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                     const SizedBox(height: 6),
                     LinearProgressIndicator(
-                      value: space.currentStep / 4.0,
+                      value: space.currentStep / 8.0,
                       backgroundColor: Colors.grey.shade200,
                       valueColor: AlwaysStoppedAnimation<Color>(_getStepColor(space.currentStep)),
                       minHeight: 6,

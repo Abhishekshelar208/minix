@@ -560,11 +560,33 @@ Return ONLY the JSON object. Do not wrap in code fences.
     // Add essential solution info (limited)
     String solutionContext = '';
     if (solution != null) {
-      final solutionTitle = _truncateText(solution['title']?.toString() ?? '', 50);
-      solutionContext = '''\n**Solution:** $solutionTitle''';
+      // Safely extract title (handle both String and nested structures)
+      String solutionTitle = '';
+      final titleValue = solution['title'];
+      if (titleValue is String) {
+        solutionTitle = _truncateText(titleValue, 50);
+      } else if (titleValue != null) {
+        // If it's not a string, try to extract meaningful value
+        solutionTitle = 'Custom Solution';
+      }
       
+      if (solutionTitle.isNotEmpty) {
+        solutionContext = '''\n**Solution:** $solutionTitle''';
+      }
+      
+      // Safely extract tech stack
       if (solution['techStack'] != null) {
-        final techStack = solution['techStack'] as List?;
+        final techStackValue = solution['techStack'];
+        List<String>? techStack;
+        
+        if (techStackValue is List) {
+          techStack = techStackValue
+              .whereType<String>()
+              .toList();
+        } else if (techStackValue is String) {
+          techStack = [techStackValue];
+        }
+        
         if (techStack != null && techStack.isNotEmpty) {
           final limitedTech = techStack.take(4).join(', ');
           solutionContext += ''' | **Tech:** $limitedTech''';

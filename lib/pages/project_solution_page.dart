@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
+import 'package:minix/data/solution_tips.dart';
 import 'package:minix/models/problem.dart';
 import 'package:minix/models/solution.dart';
 import 'package:minix/services/project_service.dart';
 import 'package:minix/services/solution_service.dart';
+import 'package:minix/services/invitation_service.dart';
 import 'package:minix/pages/solution_details_page.dart';
 import 'package:minix/pages/project_steps_page.dart';
+import 'package:minix/widgets/read_only_banner.dart';
 
 class ProjectSolutionPage extends StatefulWidget {
   final String projectSpaceId;
@@ -27,6 +31,7 @@ class ProjectSolutionPage extends StatefulWidget {
 class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerProviderStateMixin {
   final _solutionService = SolutionService();
   final _projectService = ProjectService();
+  final _invitationService = InvitationService();
   
   // Tab Controller
   late TabController _tabController;
@@ -39,6 +44,10 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
   Map<String, dynamic>? _projectSpaceData;
   bool _isLoadingProjectData = true;
   
+  // Permissions
+  bool _canEdit = true; // Whether current user can edit (is leader)
+  bool _isCheckingPermissions = true;
+  
   // Custom Solution Form
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
@@ -49,12 +58,25 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
   final List<String> _customFeatures = [];
   final List<String> _customTechStack = [];
   bool _isSavingSolution = false;
+  
+  // Solution tips rotation
+  int _currentTipIndex = 0;
+  Timer? _tipRotationTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _checkPermissions();
     _loadProjectData();
+  }
+  
+  Future<void> _checkPermissions() async {
+    final canEdit = await _invitationService.canEditProject(widget.projectSpaceId);
+    setState(() {
+      _canEdit = canEdit;
+      _isCheckingPermissions = false;
+    });
   }
 
   @override
@@ -64,6 +86,7 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
     _descriptionController.dispose();
     _featureController.dispose();
     _techController.dispose();
+    _tipRotationTimer?.cancel();
     super.dispose();
   }
 
@@ -100,7 +123,19 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
   Future<void> _generateAISolutions() async {
     if (_projectSpaceData == null) return;
     
-    setState(() => _isLoadingAISolutions = true);
+    setState(() {
+      _isLoadingAISolutions = true;
+      _currentTipIndex = 0;
+    });
+    
+    // Start rotating tips every 3 seconds
+    _tipRotationTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (mounted && _isLoadingAISolutions) {
+        setState(() {
+          _currentTipIndex = (_currentTipIndex + 1) % SolutionTips.count;
+        });
+      }
+    });
     
     try {
       final difficulty = _projectSpaceData!['difficulty'] ?? 'Intermediate';
@@ -139,6 +174,7 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
         );
       }
     } finally {
+      _tipRotationTimer?.cancel();
       if (mounted) setState(() => _isLoadingAISolutions = false);
     }
   }
@@ -346,6 +382,9 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
       body: _showSolutions 
           ? Column(
               children: [
+                // Read-only banner for non-leaders
+                if (!_canEdit) const ReadOnlyBanner(),
+                
                 // Progress Header
                 Container(
                   width: double.infinity,
@@ -441,7 +480,7 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: _isSavingSolution ? null : _proceedToRoadmap,
+                            onPressed: (!_canEdit || _isSavingSolution) ? null : _proceedToRoadmap,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xff2563eb),
                               foregroundColor: Colors.white,
@@ -511,7 +550,7 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
                 ),
               ),
               IconButton(
-                onPressed: _isLoadingAISolutions ? null : _generateAISolutions,
+                onPressed: (!_canEdit || _isLoadingAISolutions) ? null : _generateAISolutions,
                 icon: _isLoadingAISolutions
                     ? const SizedBox(
                         width: 20,
@@ -519,7 +558,7 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.refresh),
-                tooltip: 'Regenerate Solutions',
+                tooltip: _canEdit ? 'Regenerate Solutions' : 'Only leaders can regenerate',
               ),
             ],
           ),
@@ -533,14 +572,76 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
           ),
           const SizedBox(height: 24),
 
-          // Loading indicator
+          // Loading indicator with tips
           if (_isLoadingAISolutions)
-            const Center(
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  CircularProgressIndicator(color: Color(0xff2563eb)),
-                  SizedBox(height: 16),
-                  Text('Generating AI solutions...'),
+                  const SizedBox(height: 20),
+                  // Lottie animation
+                  Lottie.asset(
+                    'lib/assets/animations/loading1.json',
+                    width: double.infinity,
+                    height: 250,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    '🎨 AI is designing solution approaches...',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      color: const Color(0xff1f2937),
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'While you wait, here\'s a solution design tip!',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: const Color(0xff6b7280),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  
+                  // Animated tip card
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 500),
+                    child: _buildTipCard(SolutionTips.getTip(_currentTipIndex)),
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  // Tip progress indicator
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      SolutionTips.count,
+                      (index) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        width: index == _currentTipIndex ? 24 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: index == _currentTipIndex
+                              ? const Color(0xff2563eb)
+                              : const Color(0xffd1d5db),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  Text(
+                    'Tip ${_currentTipIndex + 1} of ${SolutionTips.count}',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: const Color(0xff9ca3af),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -615,9 +716,10 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
             const SizedBox(height: 8),
             TextFormField(
               controller: _titleController,
-              decoration: const InputDecoration(
-                hintText: 'Enter your solution title (e.g., "Smart Attendance System")',
-                prefixIcon: Icon(Icons.title),
+              enabled: _canEdit,
+              decoration: InputDecoration(
+                hintText: _canEdit ? 'Enter your solution title (e.g., "Smart Attendance System")' : 'Read-only mode',
+                prefixIcon: const Icon(Icons.title),
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -902,7 +1004,7 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _selectSolution(solution),
+                    onPressed: _canEdit ? () => _selectSolution(solution) : null,
                     icon: Icon(
                       isSelected ? Icons.check : Icons.radio_button_unchecked,
                       size: 16,
@@ -1260,7 +1362,7 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: _isLoadingAISolutions ? null : _generateAISolutions,
+                  onPressed: (!_canEdit || _isLoadingAISolutions) ? null : _generateAISolutions,
                   icon: _isLoadingAISolutions
                       ? const SizedBox(
                           width: 20,
@@ -1377,6 +1479,71 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
                 height: 1.5,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTipCard(TipItem tip) {
+    return Container(
+      key: ValueKey(tip.title), // Key for AnimatedSwitcher
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xff2563eb).withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Icon
+          Text(
+            tip.icon,
+            style: const TextStyle(fontSize: 48),
+          ),
+          const SizedBox(height: 16),
+          
+          // Title
+          Text(
+            tip.title,
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xff2563eb),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          
+          // Tip
+          Text(
+            tip.tip,
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xff1f2937),
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          
+          // Detail
+          Text(
+            tip.detail,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: const Color(0xff6b7280),
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

@@ -125,6 +125,7 @@ class ProjectSpaceSummary {
   final String? roadmapId;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String userRole; // 'owner' or 'member'
 
   const ProjectSpaceSummary({
     required this.id,
@@ -140,6 +141,7 @@ class ProjectSpaceSummary {
     this.roadmapId,
     required this.createdAt,
     required this.updatedAt,
+    this.userRole = 'owner', // Default to owner for backward compatibility
   });
 
   factory ProjectSpaceSummary.fromMap(String id, Map<String, dynamic> map) {
@@ -157,6 +159,7 @@ class ProjectSpaceSummary {
       roadmapId: map['roadmapId'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch((map['createdAt'] as num? ?? 0).toInt()),
       updatedAt: DateTime.fromMillisecondsSinceEpoch((map['updatedAt'] as num? ?? 0).toInt()),
+      userRole: (map['userRole'] as String?) ?? 'owner',
     );
   }
 

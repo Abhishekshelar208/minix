@@ -6,6 +6,7 @@ import 'package:open_file/open_file.dart';
 import 'package:minix/models/ppt_generation.dart';
 import 'package:minix/services/ppt_generation_service.dart';
 import 'package:minix/services/project_service.dart';
+import 'package:minix/services/invitation_service.dart';
 
 class PPTGenerationPage extends StatefulWidget {
   final String projectSpaceId;
@@ -25,6 +26,11 @@ class _PPTGenerationPageState extends State<PPTGenerationPage>
     with SingleTickerProviderStateMixin {
   final PPTGenerationService _pptService = PPTGenerationService();
   final ProjectService _projectService = ProjectService();
+  final InvitationService _invitationService = InvitationService();
+  
+  // Permissions
+  bool _canEdit = true;
+  bool _isCheckingPermissions = true;
 
   late TabController _tabController;
   bool _isLoading = true;
@@ -46,7 +52,16 @@ class _PPTGenerationPageState extends State<PPTGenerationPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _checkPermissions();
     _loadData();
+  }
+  
+  Future<void> _checkPermissions() async {
+    final canEdit = await _invitationService.canEditProject(widget.projectSpaceId);
+    setState(() {
+      _canEdit = canEdit;
+      _isCheckingPermissions = false;
+    });
   }
 
   @override
@@ -95,6 +110,11 @@ class _PPTGenerationPageState extends State<PPTGenerationPage>
   }
 
   Future<void> _uploadCustomTemplate() async {
+    if (!_canEdit) {
+      _showErrorSnackBar('Only team leaders can upload templates');
+      return;
+    }
+    
     setState(() => _isUploading = true);
 
     try {
@@ -172,6 +192,11 @@ class _PPTGenerationPageState extends State<PPTGenerationPage>
   }
 
   Future<void> _generatePPT() async {
+    if (!_canEdit) {
+      _showErrorSnackBar('Only team leaders can generate PPT');
+      return;
+    }
+    
     if (_selectedTemplate == null) {
       _showErrorSnackBar('Please select a template first');
       return;

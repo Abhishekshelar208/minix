@@ -3,9 +3,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:lottie/lottie.dart';
 import 'package:minix/models/problem.dart';
 import 'package:minix/services/gemini_problems_service.dart';
 import 'package:minix/services/project_service.dart';
+import 'package:minix/services/invitation_service.dart';
+import 'package:minix/widgets/read_only_banner.dart';
 
 class ProjectNameSuggestionsPage extends StatefulWidget {
   final String projectId;
@@ -24,7 +27,12 @@ class ProjectNameSuggestionsPage extends StatefulWidget {
 class _ProjectNameSuggestionsPageState extends State<ProjectNameSuggestionsPage> {
   final _projectService = ProjectService();
   final _gemini = const GeminiProblemsService();
+  final _invitationService = InvitationService();
   final _customNameController = TextEditingController();
+  
+  // Permissions
+  bool _canEdit = true;
+  bool _isCheckingPermissions = true;
   
   bool _isGeneratingNames = false;
   List<String> _suggestedNames = [];
@@ -35,7 +43,16 @@ class _ProjectNameSuggestionsPageState extends State<ProjectNameSuggestionsPage>
   @override
   void initState() {
     super.initState();
+    _checkPermissions();
     _generateProjectNames();
+  }
+  
+  Future<void> _checkPermissions() async {
+    final canEdit = await _invitationService.canEditProject(widget.projectId);
+    setState(() {
+      _canEdit = canEdit;
+      _isCheckingPermissions = false;
+    });
   }
 
   @override
@@ -275,6 +292,13 @@ Return ONLY a JSON array of strings, no other text:
   }
 
   Future<void> _selectProjectName(String name, {bool isCustom = false}) async {
+    if (!_canEdit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only team leaders can select project names')),
+      );
+      return;
+    }
+    
     setState(() {
       _selectedName = name;
       _isSavingName = true;
@@ -353,6 +377,9 @@ Return ONLY a JSON array of strings, no other text:
       ),
       body: Column(
         children: [
+          // Read-only banner for non-leaders
+          if (!_canEdit) const ReadOnlyBanner(),
+          
           // Header Section
           Container(
             width: double.infinity,
@@ -417,17 +444,33 @@ Return ONLY a JSON array of strings, no other text:
   }
 
   Widget _buildLoadingState() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
+          // Lottie animation
+          Lottie.asset(
+            'lib/assets/animations/loading2.json',
+            width: 200,
+            height: 200,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(height: 16),
           Text(
             '🤖 AI is generating creative project names...',
-            style: TextStyle(
+            style: GoogleFonts.poppins(
               fontSize: 16,
-              color: Color(0xff6b7280),
+              color: const Color(0xff6b7280),
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'This takes just a moment',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: const Color(0xff9ca3af),
             ),
             textAlign: TextAlign.center,
           ),
@@ -464,11 +507,11 @@ Return ONLY a JSON array of strings, no other text:
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _generateProjectNames,
+              onPressed: _canEdit ? _generateProjectNames : null,
               icon: const Icon(Icons.refresh),
-              label: const Text('Generate Names'),
+              label: Text(_canEdit ? 'Generate Names' : 'Read-only mode'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xff2563eb),
+                backgroundColor: _canEdit ? const Color(0xff2563eb) : Colors.grey,
               ),
             ),
           ],
@@ -520,7 +563,7 @@ Return ONLY a JSON array of strings, no other text:
                   ),
                 ),
                 child: InkWell(
-                  onTap: _isSavingName ? null : () => _selectProjectName(name),
+                  onTap: (!_canEdit || _isSavingName) ? null : () => _selectProjectName(name),
                   borderRadius: BorderRadius.circular(16),
                   child: Padding(
                     padding: const EdgeInsets.all(20),
@@ -601,9 +644,9 @@ Return ONLY a JSON array of strings, no other text:
           // Regenerate Button
           Center(
             child: OutlinedButton.icon(
-              onPressed: _isGeneratingNames || _isSavingName ? null : _generateProjectNames,
+              onPressed: (!_canEdit || _isGeneratingNames || _isSavingName) ? null : _generateProjectNames,
               icon: const Icon(Icons.refresh),
-              label: const Text('Generate New Names'),
+              label: Text(_canEdit ? 'Generate New Names' : 'Only leaders can regenerate'),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
@@ -664,8 +707,9 @@ Return ONLY a JSON array of strings, no other text:
               Expanded(
                 child: TextFormField(
                   controller: _customNameController,
+                  enabled: _canEdit && !_isSavingName,
                   decoration: InputDecoration(
-                    hintText: 'Enter your project name...',
+                    hintText: _canEdit ? 'Enter your project name...' : 'Read-only mode',
                     prefixIcon: const Icon(Icons.lightbulb_outline),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -677,15 +721,14 @@ Return ONLY a JSON array of strings, no other text:
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   ),
                   style: GoogleFonts.poppins(),
-                  onFieldSubmitted: (_) => _submitCustomName(),
-                  enabled: !_isSavingName,
+                  onFieldSubmitted: _canEdit ? (_) => _submitCustomName() : null,
                 ),
               ),
               const SizedBox(width: 12),
               ElevatedButton(
-                onPressed: _isSavingName ? null : _submitCustomName,
+                onPressed: (!_canEdit || _isSavingName) ? null : _submitCustomName,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xff7c3aed),
+                  backgroundColor: _canEdit ? const Color(0xff7c3aed) : Colors.grey,
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
