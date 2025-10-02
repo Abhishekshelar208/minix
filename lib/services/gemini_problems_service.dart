@@ -350,6 +350,8 @@ Return ONLY the JSON object. Do not wrap in code fences.
       throw StateError('Missing GEMINI_API_KEY. Pass via --dart-define=GEMINI_API_KEY=...');
     }
     
+    // Note: Type safety is now handled in the calling code
+    
     // Validate API key format
     if (apiKey.length < 30) {
       debugPrint('⚠️ API key seems too short (${apiKey.length} chars). Please check your Gemini API key.');

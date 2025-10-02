@@ -481,8 +481,9 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
       final projectSpaceData = await _projectService.getProjectSpace(widget.projectSpaceId);
       
       if (projectSpaceData != null) {
-        // Get project name (should be saved from step 2)
-        final projectName = projectSpaceData['projectName'] ?? 'Untitled Project';
+        // Get project name (should be saved from step 2) - safely handle potential Map objects
+        final projectNameRaw = projectSpaceData['projectName'] ?? 'Untitled Project';
+        final projectName = projectNameRaw is String ? projectNameRaw : 'Untitled Project';
         
         // Check if we have a selected problem or create a default one
         Problem problem;
@@ -515,7 +516,7 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
             builder: (context) => ProjectSolutionPage(
               projectSpaceId: widget.projectSpaceId,
               problem: problem,
-              projectName: projectName.toString(),
+              projectName: projectName,
             ),
             ),
           ).then((_) async {
@@ -540,8 +541,9 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
       final projectSpaceData = await _projectService.getProjectSpace(widget.projectSpaceId);
       
       if (projectSpaceData != null) {
-        // Get project name (should be saved from step 2)
-        final projectName = projectSpaceData['projectName'] ?? 'Untitled Project';
+        // Get project name (should be saved from step 2) - safely handle potential Map objects
+        final projectNameRaw = projectSpaceData['projectName'] ?? 'Untitled Project';
+        final projectName = projectNameRaw is String ? projectNameRaw : 'Untitled Project';
         
         // Check if we have a selected problem or create a default one
         Problem problem;
@@ -574,7 +576,7 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
             builder: (context) => ProjectRoadmapPage(
               projectSpaceId: widget.projectSpaceId,
               problem: problem,
-              projectName: projectName.toString(),
+              projectName: projectName,
             ),
             ),
           ).then((_) async {
@@ -599,8 +601,9 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
       final projectSpaceData = await _projectService.getProjectSpace(widget.projectSpaceId);
       
       if (projectSpaceData != null) {
-        // Get project name (should be saved from step 2)
-        final projectName = projectSpaceData['projectName'] ?? 'Untitled Project';
+        // Get project name (should be saved from step 2) - safely handle potential Map objects
+        final projectNameRaw = projectSpaceData['projectName'] ?? 'Untitled Project';
+        final projectName = projectNameRaw is String ? projectNameRaw : 'Untitled Project';
         
         // Check if we have a selected problem or create a default one
         Problem problem;
@@ -632,7 +635,7 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
             MaterialPageRoute<void>(
             builder: (context) => PromptGenerationPage(
               projectSpaceId: widget.projectSpaceId,
-              projectName: projectName.toString(),
+              projectName: projectName,
               problem: problem,
             ),
             ),
@@ -658,8 +661,9 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
       final projectSpaceData = await _projectService.getProjectSpace(widget.projectSpaceId);
       
       if (projectSpaceData != null) {
-        // Get project name (should be saved from step 2)
-        final projectName = projectSpaceData['projectName'] ?? 'Untitled Project';
+        // Get project name (should be saved from step 2) - safely handle potential Map objects
+        final projectNameRaw = projectSpaceData['projectName'] ?? 'Untitled Project';
+        final projectName = projectNameRaw is String ? projectNameRaw : 'Untitled Project';
         
         if (mounted) {
           Navigator.push(
@@ -667,7 +671,7 @@ class _ProjectStepsPageState extends State<ProjectStepsPage> {
             MaterialPageRoute<void>(
             builder: (context) => PPTGenerationPage(
               projectSpaceId: widget.projectSpaceId,
-              projectName: projectName.toString(),
+              projectName: projectName,
             ),
             ),
           ).then((_) async {

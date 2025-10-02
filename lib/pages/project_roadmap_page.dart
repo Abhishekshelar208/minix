@@ -13,13 +13,13 @@ import 'package:minix/widgets/read_only_banner.dart';
 class ProjectRoadmapPage extends StatefulWidget {
   final String projectSpaceId;
   final Problem problem;
-  final String projectName;
+  final dynamic projectName; // Can be String or Map - we'll handle safely
 
   const ProjectRoadmapPage({
     super.key,
     required this.projectSpaceId,
     required this.problem,
-    required this.projectName,
+    required this.projectName, // Dynamic type to handle String or Map
   });
 
   @override
@@ -34,7 +34,6 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
   
   // Permissions
   bool _canEdit = true;
-  bool _isCheckingPermissions = true;
 
   // Form controllers
   final _deadlineController = TextEditingController();
@@ -60,7 +59,6 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
     final canEdit = await _invitationService.canEditProject(widget.projectSpaceId);
     setState(() {
       _canEdit = canEdit;
-      _isCheckingPermissions = false;
     });
   }
 
@@ -178,10 +176,22 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
       // Use skills from the selected problem instead of manual input
       final problemSkills = widget.problem.skills;
       
-      // Debug ALL parameters to find the Map issue
+      // Safely extract projectName as string to prevent Map type issues
+      String safeProjectName;
+      if (widget.projectName is String) {
+        safeProjectName = widget.projectName as String;
+      } else {
+        debugPrint('⚠️ projectName is not a String, type: ${widget.projectName.runtimeType}');
+        safeProjectName = 'Project';
+      }
+      
+      // Use problem description (should always be a String from Problem model)
+      String safeDescription = widget.problem.description;
+      
+      // Debug ALL parameters to find any remaining Map issues
       debugPrint('🔍 === DEBUGGING ROADMAP PARAMETERS ===');
-      debugPrint('projectName type: ${widget.projectName.runtimeType}');
-      debugPrint('problem.description type: ${widget.problem.description.runtimeType}');
+      debugPrint('projectName type: ${safeProjectName.runtimeType} = "$safeProjectName"');
+      debugPrint('problem.description type: ${safeDescription.runtimeType}');
       debugPrint('teamMembers type: ${teamMembers.runtimeType}');
       debugPrint('problemSkills type: ${problemSkills.runtimeType}');
       debugPrint('difficulty type: ${difficulty.runtimeType} = "$difficulty"');
@@ -190,8 +200,8 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
 
       // Generate enhanced roadmap using AI with full context
       final tasks = await _gemini.generateRoadmap(
-        projectTitle: widget.projectName,
-        projectDescription: widget.problem.description,
+        projectTitle: safeProjectName,
+        projectDescription: safeDescription,
         teamMembers: teamMembers,
         teamSkills: problemSkills,
         startDate: startDate,
@@ -347,7 +357,7 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Project: ${widget.projectName}',
+                  'Project: ${widget.projectName is String ? widget.projectName as String : 'Untitled Project'}',
                   style: GoogleFonts.poppins(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -760,7 +770,7 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'You have completed all tasks for ${widget.projectName}!',
+                    'You have completed all tasks for ${widget.projectName is String ? widget.projectName as String : 'your project'}!',
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       color: const Color(0xff059669),
