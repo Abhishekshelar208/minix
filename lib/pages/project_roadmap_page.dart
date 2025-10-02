@@ -143,8 +143,12 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
       final teamMembers = _projectSpaceData?['teamMembers'] != null 
           ? List<String>.from(_projectSpaceData!['teamMembers'] as List)
           : <String>['Team'];
-      final difficulty = _projectSpaceData?['difficulty'] ?? 'Intermediate';
-      final targetPlatform = _projectSpaceData?['targetPlatform'] ?? 'App';
+      // Safely extract difficulty and targetPlatform as strings
+      final difficultyRaw = _projectSpaceData?['difficulty'] ?? 'Intermediate';
+      final difficulty = difficultyRaw is String ? difficultyRaw : 'Intermediate';
+      
+      final targetPlatformRaw = _projectSpaceData?['targetPlatform'] ?? 'App';
+      final targetPlatform = targetPlatformRaw is String ? targetPlatformRaw : 'App';
       
       // Use skills from the selected problem instead of manual input
       final problemSkills = widget.problem.skills;
@@ -157,8 +161,8 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
         teamSkills: problemSkills,
         startDate: startDate,
         endDate: _selectedDeadline!,
-        difficulty: difficulty.toString(),
-        targetPlatform: targetPlatform.toString(),
+        difficulty: difficulty,
+        targetPlatform: targetPlatform,
         problem: widget.problem, // Pass full problem context
         solution: _selectedSolution, // Pass selected solution context
       );
