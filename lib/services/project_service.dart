@@ -272,7 +272,15 @@ class ProjectService {
     if (snapshot.exists) {
       final data = snapshot.value as Map<dynamic, dynamic>?;
       if (data != null) {
-        return Map<String, dynamic>.from(data);
+        final result = Map<String, dynamic>.from(data);
+        
+        // Debug logging
+        debugPrint('🐛 getProjectSpaceData DEBUG:');
+        debugPrint('  difficulty: ${result['difficulty']} (${result['difficulty']?.runtimeType})');
+        debugPrint('  targetPlatform: ${result['targetPlatform']} (${result['targetPlatform']?.runtimeType})');
+        debugPrint('  teamName: ${result['teamName']} (${result['teamName']?.runtimeType})');
+        
+        return result;
       }
     }
     return null;

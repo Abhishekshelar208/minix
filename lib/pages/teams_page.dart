@@ -6,6 +6,7 @@ import 'package:minix/services/project_service.dart';
 import 'package:minix/models/team_member.dart';
 import 'package:minix/models/team_activity.dart';
 import 'package:minix/pages/team_detail_page.dart';
+import 'package:minix/utils/theme_helper.dart';
 
 class TeamsPage extends StatefulWidget {
   const TeamsPage({super.key});
@@ -79,7 +80,7 @@ class _TeamsPageState extends State<TeamsPage> with AutomaticKeepAliveClientMixi
     super.build(context);
     
     return Scaffold(
-      backgroundColor: const Color(0xfff8f9fa),
+      backgroundColor: ThemeHelper.getBackgroundColor(context),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -101,13 +102,13 @@ class _TeamsPageState extends State<TeamsPage> with AutomaticKeepAliveClientMixi
             Container(
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: const Color(0xff2563eb).withOpacity(0.1),
+                color: ThemeHelper.getPrimaryChipBackground(context),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.group,
                 size: 80,
-                color: Color(0xff2563eb),
+                color: ThemeHelper.getPrimaryColor(context),
               ),
             ),
             const SizedBox(height: 32),
@@ -116,7 +117,7 @@ class _TeamsPageState extends State<TeamsPage> with AutomaticKeepAliveClientMixi
               style: GoogleFonts.poppins(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xff1f2937),
+                color: ThemeHelper.getTextPrimary(context),
               ),
             ),
             const SizedBox(height: 16),
@@ -124,7 +125,7 @@ class _TeamsPageState extends State<TeamsPage> with AutomaticKeepAliveClientMixi
               'Join a project team to collaborate with others!\n\nCreate a project or accept an invitation to get started.',
               style: GoogleFonts.poppins(
                 fontSize: 16,
-                color: const Color(0xff6b7280),
+                color: ThemeHelper.getTextSecondary(context),
                 height: 1.6,
               ),
               textAlign: TextAlign.center,
@@ -133,15 +134,9 @@ class _TeamsPageState extends State<TeamsPage> with AutomaticKeepAliveClientMixi
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: ThemeHelper.getCardColor(context),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                boxShadow: ThemeHelper.getSmallShadow(context),
               ),
               child: Column(
                 children: [
@@ -177,13 +172,13 @@ class _TeamsPageState extends State<TeamsPage> with AutomaticKeepAliveClientMixi
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xff2563eb).withOpacity(0.1),
+            color: ThemeHelper.getPrimaryChipBackground(context),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
             icon,
             size: 24,
-            color: const Color(0xff2563eb),
+            color: ThemeHelper.getPrimaryColor(context),
           ),
         ),
         const SizedBox(width: 16),
@@ -196,7 +191,7 @@ class _TeamsPageState extends State<TeamsPage> with AutomaticKeepAliveClientMixi
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xff1f2937),
+                  color: ThemeHelper.getTextPrimary(context),
                 ),
               ),
               Text(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:minix/pages/home_screen.dart';
 import 'package:minix/pages/intro_screen.dart';
+import 'package:minix/utils/theme_helper.dart';
 
 class LoginSignupScreen extends StatefulWidget {
   const LoginSignupScreen({super.key});

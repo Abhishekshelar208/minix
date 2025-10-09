@@ -46,7 +46,6 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
   
   // Permissions
   bool _canEdit = true; // Whether current user can edit (is leader)
-  bool _isCheckingPermissions = true;
   
   // Custom Solution Form
   final _formKey = GlobalKey<FormState>();
@@ -75,7 +74,6 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
     final canEdit = await _invitationService.canEditProject(widget.projectSpaceId);
     setState(() {
       _canEdit = canEdit;
-      _isCheckingPermissions = false;
     });
   }
 
@@ -138,14 +136,18 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
     });
     
     try {
-      final difficulty = _projectSpaceData!['difficulty'] ?? 'Intermediate';
-      final targetPlatform = _projectSpaceData!['targetPlatform'] ?? 'App';
+      // Safely extract difficulty and targetPlatform as strings
+      final difficultyRaw = _projectSpaceData!['difficulty'] ?? 'Intermediate';
+      final difficulty = difficultyRaw is String ? difficultyRaw : 'Intermediate';
+      
+      final targetPlatformRaw = _projectSpaceData!['targetPlatform'] ?? 'App';
+      final targetPlatform = targetPlatformRaw is String ? targetPlatformRaw : 'App';
       final teamSkills = widget.problem.skills; // Use skills from problem
       
       final solutions = await _solutionService.generateSolutions(
         problem: widget.problem,
-        difficulty: difficulty.toString(),
-        targetPlatform: targetPlatform.toString(),
+        difficulty: difficulty,
+        targetPlatform: targetPlatform,
         teamSkills: teamSkills,
         solutionCount: 3,
       );
@@ -254,14 +256,16 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
     setState(() => _isSavingSolution = true);
 
     try {
-      final difficulty = _projectSpaceData!['difficulty'] ?? 'Intermediate';
+      // Safely extract difficulty as string
+      final difficultyRaw = _projectSpaceData!['difficulty'] ?? 'Intermediate';
+      final difficulty = difficultyRaw is String ? difficultyRaw : 'Intermediate';
       
       final customSolution = _solutionService.createCustomSolution(
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         keyFeatures: _customFeatures,
         techStack: _customTechStack,
-        difficulty: difficulty.toString(),
+        difficulty: difficulty,
       );
 
       setState(() {
@@ -320,10 +324,10 @@ class _ProjectSolutionPageState extends State<ProjectSolutionPage> with TickerPr
           MaterialPageRoute<void>(
             builder: (context) => ProjectStepsPage(
               projectSpaceId: widget.projectSpaceId,
-              teamName: (_projectSpaceData?['teamName']?.toString() ?? 'Team'),
+              teamName: (_projectSpaceData?['teamName'] is String ? (_projectSpaceData!['teamName'] as String) : 'Team'),
               currentStep: 4, // Now at step 4 (Roadmap Generation)
               yearOfStudy: (_projectSpaceData?['yearOfStudy'] as int?) ?? 3,
-              targetPlatform: (_projectSpaceData?['targetPlatform']?.toString() ?? 'App'),
+              targetPlatform: (_projectSpaceData?['targetPlatform'] is String ? (_projectSpaceData!['targetPlatform'] as String) : 'App'),
               teamSize: (_projectSpaceData?['teamMembers'] as List?)?.length ?? 1,
             ),
           ),

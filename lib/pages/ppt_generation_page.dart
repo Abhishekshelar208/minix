@@ -81,7 +81,7 @@ class _PPTGenerationPageState extends State<PPTGenerationPage>
       // Load templates
       final defaultTemplates = await _pptService.getDefaultTemplates();
       final userTemplates = await _pptService.getUserTemplates();
-      final generatedPPTs = await _pptService.getUserGeneratedPPTs();
+      final generatedPPTs = await _pptService.getProjectGeneratedPPTs(widget.projectSpaceId);
 
       setState(() {
         _projectData = projectData;

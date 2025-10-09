@@ -12,6 +12,7 @@ import 'package:minix/services/invitation_service.dart';
 import 'package:minix/services/user_profile_service.dart';
 import 'package:minix/models/project_roadmap.dart';
 import 'package:minix/models/task.dart';
+import 'package:minix/utils/theme_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -74,19 +75,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xff2563eb), Color(0xff3b82f6)],
-        ),
+        gradient: ThemeHelper.getPrimaryGradient(context),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xff2563eb).withValues(alpha: 0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: ThemeHelper.getPrimaryShadow(context),
       ),
       child: Column(
         children: [
@@ -197,21 +188,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ),
                 const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xff059669),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Active',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
@@ -233,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           style: GoogleFonts.poppins(
             fontSize: 32,
             fontWeight: FontWeight.bold,
-            color: const Color(0xff2563eb),
+            color: ThemeHelper.getPrimaryColor(context),
           ),
         ),
       ),
@@ -306,15 +282,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ThemeHelper.getCardColor(context),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: ThemeHelper.getSmallShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

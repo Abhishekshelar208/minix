@@ -1102,6 +1102,32 @@ class PPTGenerationServiceSimple {
     }
   }
 
+  Future<List<GeneratedPPT>> getProjectGeneratedPPTs(String projectSpaceId) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return [];
+
+    try {
+      final snapshot = await _db.ref('GeneratedPPTs/$uid').get();
+      final List<GeneratedPPT> presentations = [];
+
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+        data.forEach((key, value) {
+          final ppt = GeneratedPPT.fromMap(Map<String, dynamic>.from(value as Map));
+          // Only include PPTs for the specified project space
+          if (ppt.projectSpaceId == projectSpaceId) {
+            presentations.add(ppt);
+          }
+        });
+      }
+
+      return presentations..sort((a, b) => b.generatedAt.compareTo(a.generatedAt));
+    } catch (e) {
+      debugPrint('Error loading project generated PPTs: $e');
+      return [];
+    }
+  }
+
   Future<void> sharePPT(GeneratedPPT ppt) async {
     try {
       final file = File(ppt.filePath);

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:minix/services/project_service.dart';
 import 'package:minix/services/invitation_service.dart';
+import 'package:minix/utils/theme_helper.dart';
 
 class ProjectSpaceCreationPage extends StatefulWidget {
   const ProjectSpaceCreationPage({super.key});

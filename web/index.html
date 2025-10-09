@@ -29,10 +29,195 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>minix</title>
+  <title>Minix</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f8f9fa;
+    }
+    
+    #loading {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #e5e7eb;
+      border-top: 4px solid #2563eb;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    #loading-text {
+      margin-top: 20px;
+      color: #6b7280;
+      font-size: 16px;
+    }
+  </style>
 </head>
 <body>
+  <!-- Loading Screen -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <div id="loading-text">Loading Minix...</div>
+  </div>
+
+  <!-- Layer 1: HTML Version Control & Auto-Update System -->
+  <script>
+    // ==================== VERSION CONTROL CONFIGURATION ====================
+    const APP_VERSION = '1.0.0';  // Update this version number when deploying
+    const AUTO_UPDATE_ENABLED = false;  // Set to true in production
+    const VERSION_KEY = 'minix_app_version';
+    const LAST_RELOAD_KEY = 'minix_last_reload';
+    const RELOAD_COOLDOWN = 10000; // 10 seconds cooldown to prevent loops
+
+    // ==================== AUTO-UPDATE LOGIC ====================
+    function checkAndUpdateVersion() {
+      console.log('🔍 Checking app version...');
+      console.log('📱 Current version:', APP_VERSION);
+      
+      if (!AUTO_UPDATE_ENABLED) {
+        console.log('⚠️ Auto-update is disabled (development mode)');
+        localStorage.setItem(VERSION_KEY, APP_VERSION);
+        return;
+      }
+
+      const storedVersion = localStorage.getItem(VERSION_KEY);
+      console.log('💾 Stored version:', storedVersion || 'none');
+
+      // Check if version has changed
+      if (storedVersion && storedVersion !== APP_VERSION) {
+        console.log('🔄 Version mismatch detected!');
+        console.log('   Old:', storedVersion);
+        console.log('   New:', APP_VERSION);
+
+        // Check cooldown to prevent reload loops
+        const lastReload = localStorage.getItem(LAST_RELOAD_KEY);
+        const now = Date.now();
+
+        if (lastReload && (now - parseInt(lastReload)) < RELOAD_COOLDOWN) {
+          console.log('⏳ Reload cooldown active, skipping update');
+          localStorage.setItem(VERSION_KEY, APP_VERSION);
+          return;
+        }
+
+        console.log('🧹 Clearing caches and storage...');
+        performHardUpdate();
+      } else {
+        console.log('✅ Version is up to date');
+        localStorage.setItem(VERSION_KEY, APP_VERSION);
+      }
+    }
+
+    async function performHardUpdate() {
+      try {
+        // Store reload timestamp
+        localStorage.setItem(LAST_RELOAD_KEY, Date.now().toString());
+        
+        // 1. Clear all caches
+        console.log('🗑️ Clearing caches...');
+        if ('caches' in window) {
+          const cacheNames = await caches.keys();
+          await Promise.all(
+            cacheNames.map(cacheName => {
+              console.log('   Deleting cache:', cacheName);
+              return caches.delete(cacheName);
+            })
+          );
+        }
+
+        // 2. Unregister all service workers
+        console.log('🔌 Unregistering service workers...');
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(
+            registrations.map(registration => {
+              console.log('   Unregistering:', registration.scope);
+              return registration.unregister();
+            })
+          );
+        }
+
+        // 3. Clear localStorage except version info
+        console.log('🧹 Clearing storage...');
+        const versionToKeep = APP_VERSION;
+        const lastReloadToKeep = localStorage.getItem(LAST_RELOAD_KEY);
+        localStorage.clear();
+        localStorage.setItem(VERSION_KEY, versionToKeep);
+        localStorage.setItem(LAST_RELOAD_KEY, lastReloadToKeep);
+
+        // 4. Force hard reload
+        console.log('🔄 Performing hard reload...');
+        window.location.reload(true);
+      } catch (error) {
+        console.error('❌ Error during hard update:', error);
+        // Force reload anyway
+        localStorage.setItem(VERSION_KEY, APP_VERSION);
+        window.location.reload(true);
+      }
+    }
+
+    // Run version check on page load
+    checkAndUpdateVersion();
+
+    // ==================== SERVICE WORKER REGISTRATION ====================
+    window.addEventListener('load', async function() {
+      // Register custom service worker if it exists
+      if ('serviceWorker' in navigator) {
+        try {
+          // First, try to register custom service worker
+          const registration = await navigator.serviceWorker.register(
+            '/service-worker.js',
+            { scope: '/' }
+          );
+          
+          console.log('✅ Service Worker registered:', registration.scope);
+          
+          // Listen for updates
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            console.log('🔄 Service Worker update found');
+            
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'activated') {
+                console.log('✅ New Service Worker activated');
+                // Optionally notify user about update
+              }
+            });
+          });
+        } catch (error) {
+          console.log('ℹ️ Custom service worker not available, using Flutter default');
+          console.log('   Error:', error.message);
+        }
+      }
+    });
+  </script>
+
+  <!-- Flutter Bootstrap -->
   <script src="flutter_bootstrap.js" async></script>
+  
+  <!-- Remove loading screen when Flutter is ready -->
+  <script>
+    window.addEventListener('flutter-first-frame', function() {
+      const loading = document.getElementById('loading');
+      if (loading) {
+        loading.style.display = 'none';
+      }
+    });
+  </script>
 </body>
 </html>

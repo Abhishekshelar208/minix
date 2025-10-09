@@ -45,6 +45,7 @@ class DefaultFirebaseOptions {
     appId: '1:937703255335:web:08aa17cbe9365014c88d02',
     messagingSenderId: '937703255335',
     projectId: 'minix-677e3',
+    databaseURL: 'https://minix-677e3-default-rtdb.firebaseio.com/',
     authDomain: 'minix-677e3.firebaseapp.com',
     storageBucket: 'minix-677e3.firebasestorage.app',
     measurementId: 'G-22H5Q8DF8C',
@@ -54,6 +55,7 @@ class DefaultFirebaseOptions {
     apiKey: 'AIzaSyA58woroOr0ZZUgGIJEnQ5Yy5s8kWe3iC0',
     appId: '1:937703255335:android:cdbb8541e22c16ccc88d02',
     messagingSenderId: '937703255335',
+    databaseURL: 'https://minix-677e3-default-rtdb.firebaseio.com/',
     projectId: 'minix-677e3',
     storageBucket: 'minix-677e3.firebasestorage.app',
   );

@@ -191,7 +191,9 @@ class PPTGenerationService {
         final projectData = Map<String, dynamic>.from((projectSnapshot.value ?? {}) as Map);
         enrichedData.addAll({
           'teamName': (projectData['teamName'] ?? 'Team').toString(),
-          'teamMembers': List<String>.from((projectData['teamMembers'] ?? <String>[]) as Iterable),
+          'teamMembers': (projectData['teamMembers'] as List?)?.map((member) => 
+            member is String ? member : (member['name']?.toString() ?? member['email']?.toString() ?? 'Unknown')
+          ).toList() ?? <String>[],
           'yearOfStudy': (projectData['yearOfStudy'] ?? 2) as int,
           'targetPlatform': (projectData['targetPlatform'] ?? 'App').toString(),
           'difficulty': (projectData['difficulty'] ?? 'Intermediate').toString(),
@@ -254,7 +256,7 @@ class PPTGenerationService {
 
     // Generate each slide
     for (final slideTemplate in slidesToGenerate) {
-      final slideContent = _generateSlideContent(slideTemplate, projectData, customizations);
+      final slideContent = _generateSlideContent(slideTemplate, projectData, customizations, template);
       
       pdf.addPage(
         pw.Page(
@@ -270,44 +272,132 @@ class PPTGenerationService {
     return await pdf.save();
   }
 
-  pw.Widget _generateSlideContent(
-    SlideTemplate slideTemplate, 
-    Map<String, dynamic> projectData, 
-    Map<String, String> customizations
-  ) {
-    switch (slideTemplate.type) {
-      case SlideType.titleSlide:
-        return _buildTitleSlide(projectData, customizations);
-      case SlideType.introduction:
-        return _buildIntroductionSlide(projectData, customizations);
-      case SlideType.problemStatement:
-        return _buildProblemStatementSlide(projectData, customizations);
-      case SlideType.objectives:
-        return _buildObjectivesSlide(projectData, customizations);
-      case SlideType.methodology:
-        return _buildMethodologySlide(projectData, customizations);
-      case SlideType.architecture:
-        return _buildArchitectureSlide(projectData, customizations);
-      case SlideType.implementation:
-        return _buildImplementationSlide(projectData, customizations);
-      case SlideType.results:
-        return _buildResultsSlide(projectData, customizations);
-      case SlideType.conclusion:
-        return _buildConclusionSlide(projectData, customizations);
-      case SlideType.references:
-        return _buildReferencesSlide(projectData, customizations);
-      case SlideType.thankyou:
-        return _buildThankYouSlide(projectData, customizations);
+  // Theme color helpers
+  PdfColor _getPrimaryColor(PPTTemplate template) {
+    final colorStr = template.theme.primaryColor;
+    if (colorStr != null && colorStr.startsWith('#')) {
+      return PdfColor.fromHex(colorStr);
+    }
+    // Fallback based on template category
+    switch (template.id) {
+      case 'academic_standard':
+        return PdfColors.blue800;
+      case 'professional_clean':
+        return PdfColor.fromHex('#1f2937');
+      case 'technical_detailed':
+        return PdfColor.fromHex('#059669');
+      case 'minimal_simple':
+        return PdfColor.fromHex('#6b7280');
       default:
-        return _buildGenericSlide(slideTemplate, projectData, customizations);
+        return PdfColors.blue800;
     }
   }
 
-  pw.Widget _buildTitleSlide(Map<String, dynamic> data, Map<String, String> customizations) {
+  PdfColor _getSecondaryColor(PPTTemplate template) {
+    final colorStr = template.theme.secondaryColor;
+    if (colorStr != null && colorStr.startsWith('#')) {
+      return PdfColor.fromHex(colorStr);
+    }
+    // Fallback based on template category
+    switch (template.id) {
+      case 'academic_standard':
+        return PdfColors.blue600;
+      case 'professional_clean':
+        return PdfColor.fromHex('#374151');
+      case 'technical_detailed':
+        return PdfColor.fromHex('#10b981');
+      case 'minimal_simple':
+        return PdfColor.fromHex('#9ca3af');
+      default:
+        return PdfColors.blue600;
+    }
+  }
+
+  PdfColor _getAccentColor(PPTTemplate template) {
+    final colorStr = template.theme.accentColor;
+    if (colorStr != null && colorStr.startsWith('#')) {
+      return PdfColor.fromHex(colorStr);
+    }
+    // Fallback based on template category
+    switch (template.id) {
+      case 'academic_standard':
+        return PdfColors.indigo600;
+      case 'professional_clean':
+        return PdfColor.fromHex('#3b82f6');
+      case 'technical_detailed':
+        return PdfColor.fromHex('#34d399');
+      case 'minimal_simple':
+        return PdfColor.fromHex('#f59e0b');
+      default:
+        return PdfColors.indigo600;
+    }
+  }
+
+  List<PdfColor> _getGradientColors(PPTTemplate template) {
+    final primary = _getPrimaryColor(template);
+    final secondary = _getSecondaryColor(template);
+    return [primary, secondary, primary.shade(0.9)];
+  }
+
+  String _getTemplateIcon(PPTTemplate template) {
+    switch (template.id) {
+      case 'academic_standard':
+        return '🎓';
+      case 'professional_clean':
+        return '💼';
+      case 'technical_detailed':
+        return '⚙️';
+      case 'minimal_simple':
+        return '✨';
+      default:
+        return '🚀';
+    }
+  }
+
+  pw.Widget _generateSlideContent(
+    SlideTemplate slideTemplate, 
+    Map<String, dynamic> projectData, 
+    Map<String, String> customizations,
+    PPTTemplate template
+  ) {
+    switch (slideTemplate.type) {
+      case SlideType.titleSlide:
+        return _buildTitleSlide(projectData, customizations, template);
+      case SlideType.introduction:
+        return _buildIntroductionSlide(projectData, customizations, template);
+      case SlideType.problemStatement:
+        return _buildProblemStatementSlide(projectData, customizations, template);
+      case SlideType.objectives:
+        return _buildObjectivesSlide(projectData, customizations, template);
+      case SlideType.methodology:
+        return _buildMethodologySlide(projectData, customizations, template);
+      case SlideType.architecture:
+        return _buildArchitectureSlide(projectData, customizations, template);
+      case SlideType.implementation:
+        return _buildImplementationSlide(projectData, customizations, template);
+      case SlideType.results:
+        return _buildResultsSlide(projectData, customizations, template);
+      case SlideType.conclusion:
+        return _buildConclusionSlide(projectData, customizations, template);
+      case SlideType.references:
+        return _buildReferencesSlide(projectData, customizations, template);
+      case SlideType.thankyou:
+        return _buildThankYouSlide(projectData, customizations, template);
+      default:
+        return _buildGenericSlide(slideTemplate, projectData, customizations, template);
+    }
+  }
+
+  pw.Widget _buildTitleSlide(Map<String, dynamic> data, Map<String, String> customizations, PPTTemplate template) {
+    final primary = _getPrimaryColor(template);
+    final secondary = _getSecondaryColor(template);
+    final accent = _getAccentColor(template);
+    final gradientColors = _getGradientColors(template);
+    
     return pw.Container(
       decoration: pw.BoxDecoration(
         gradient: pw.LinearGradient(
-          colors: [PdfColors.blue800, PdfColors.blue900, PdfColors.indigo900],
+          colors: gradientColors,
           begin: pw.Alignment.topLeft,
           end: pw.Alignment.bottomRight,
         ),
@@ -367,7 +457,7 @@ class PPTGenerationService {
                         height: 80,
                         decoration: pw.BoxDecoration(
                           gradient: pw.LinearGradient(
-                            colors: [PdfColors.blue600, PdfColors.purple600],
+                            colors: [secondary, accent],
                             begin: pw.Alignment.topLeft,
                             end: pw.Alignment.bottomRight,
                           ),
@@ -375,7 +465,7 @@ class PPTGenerationService {
                         ),
                         child: pw.Center(
                           child: pw.Text(
-                            '🚀',
+                            _getTemplateIcon(template),
                             style: pw.TextStyle(fontSize: 40),
                           ),
                         ),
@@ -399,15 +489,15 @@ class PPTGenerationService {
                       pw.Container(
                         padding: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                         decoration: pw.BoxDecoration(
-                          color: PdfColors.blue50,
+                          color: accent.shade(0.1),
                           borderRadius: const pw.BorderRadius.all(pw.Radius.circular(25)),
-                          border: pw.Border.all(color: PdfColors.blue200, width: 1),
+                          border: pw.Border.all(color: accent.shade(0.3), width: 1),
                         ),
                         child: pw.Text(
           customizations['subtitle'] ?? (data['solutionTitle'] ?? 'Engineering Project').toString(),
                           style: pw.TextStyle(
                             fontSize: 16,
-                            color: PdfColors.blue800,
+                            color: accent.shade(0.8),
                             fontWeight: pw.FontWeight.bold,
                           ),
                           textAlign: pw.TextAlign.center,
@@ -422,17 +512,17 @@ class PPTGenerationService {
                           _buildInfoCard(
                             '👥 Team',
             (data['teamName'] ?? 'Team').toString(),
-                            PdfColors.green600,
+                            secondary,
                           ),
                           _buildInfoCard(
                             '📱 Platform',
             (data['targetPlatform'] ?? 'App').toString(),
-                            PdfColors.purple600,
+                            accent,
                           ),
                           _buildInfoCard(
                             '🎓 Year',
                             '${data['yearOfStudy'] ?? 2}',
-                            PdfColors.orange600,
+                            primary.shade(0.7),
                           ),
                         ],
                       ),
@@ -458,7 +548,7 @@ class PPTGenerationService {
                               ),
                               pw.SizedBox(height: 5),
                               pw.Text(
-                                (data['teamMembers'] as List<String>).join(' • '),
+                                (data['teamMembers'] as List<String>? ?? <String>[]).join(' • '),
                                 style: pw.TextStyle(
                                   fontSize: 14,
                                   color: PdfColors.grey800,
@@ -499,11 +589,14 @@ class PPTGenerationService {
     );
   }
 
-  pw.Widget _buildIntroductionSlide(Map<String, dynamic> data, Map<String, String> customizations) {
+  pw.Widget _buildIntroductionSlide(Map<String, dynamic> data, Map<String, String> customizations, PPTTemplate template) {
+    final primary = _getPrimaryColor(template);
+    final secondary = _getSecondaryColor(template);
+    final accent = _getAccentColor(template);
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _buildSlideHeader('Project Introduction'),
+        _buildSlideHeader('Project Introduction', template),
         pw.SizedBox(height: 40),
         
         // Main introduction card
@@ -511,15 +604,15 @@ class PPTGenerationService {
           padding: const pw.EdgeInsets.all(25),
           decoration: pw.BoxDecoration(
             gradient: pw.LinearGradient(
-              colors: [PdfColors.blue50, PdfColors.indigo50],
+              colors: [primary.shade(0.05), accent.shade(0.05)],
               begin: pw.Alignment.topLeft,
               end: pw.Alignment.bottomRight,
             ),
             borderRadius: const pw.BorderRadius.all(pw.Radius.circular(16)),
-            border: pw.Border.all(color: PdfColors.blue200, width: 2),
+            border: pw.Border.all(color: primary.shade(0.3), width: 2),
             boxShadow: [
               pw.BoxShadow(
-                color: PdfColors.blue200,
+                color: primary.shade(0.3),
                 blurRadius: 8,
                 offset: const PdfPoint(0, 4),
               ),
@@ -533,7 +626,7 @@ class PPTGenerationService {
                   pw.Container(
                     padding: const pw.EdgeInsets.all(8),
                     decoration: pw.BoxDecoration(
-                      color: PdfColors.blue600,
+                      color: accent,
                       borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
                     ),
                     child: pw.Text(
@@ -548,7 +641,7 @@ class PPTGenerationService {
                       style: pw.TextStyle(
                         fontSize: 20,
                         fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.blue800,
+                        color: primary.shade(0.8),
                       ),
                     ),
                   ),
@@ -685,11 +778,11 @@ class PPTGenerationService {
     );
   }
 
-  pw.Widget _buildProblemStatementSlide(Map<String, dynamic> data, Map<String, String> customizations) {
+  pw.Widget _buildProblemStatementSlide(Map<String, dynamic> data, Map<String, String> customizations, PPTTemplate template) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _buildSlideHeader('Problem Statement'),
+        _buildSlideHeader('Problem Statement', template),
         pw.SizedBox(height: 40),
         
         // Problem description in modern card
@@ -810,11 +903,11 @@ class PPTGenerationService {
     );
   }
 
-  pw.Widget _buildObjectivesSlide(Map<String, dynamic> data, Map<String, String> customizations) {
+  pw.Widget _buildObjectivesSlide(Map<String, dynamic> data, Map<String, String> customizations, PPTTemplate template) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _buildSlideHeader('Project Objectives'),
+        _buildSlideHeader('Project Objectives', template),
         pw.SizedBox(height: 30),
         pw.Text(
           'Our main objectives are:',
@@ -832,11 +925,11 @@ class PPTGenerationService {
     );
   }
 
-  pw.Widget _buildMethodologySlide(Map<String, dynamic> data, Map<String, String> customizations) {
+  pw.Widget _buildMethodologySlide(Map<String, dynamic> data, Map<String, String> customizations, PPTTemplate template) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _buildSlideHeader('Methodology'),
+        _buildSlideHeader('Methodology', template),
         pw.SizedBox(height: 30),
         pw.Text(
           'Our development approach:',
@@ -859,11 +952,11 @@ class PPTGenerationService {
     );
   }
 
-  pw.Widget _buildArchitectureSlide(Map<String, dynamic> data, Map<String, String> customizations) {
+  pw.Widget _buildArchitectureSlide(Map<String, dynamic> data, Map<String, String> customizations, PPTTemplate template) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _buildSlideHeader('System Architecture'),
+        _buildSlideHeader('System Architecture', template),
         pw.SizedBox(height: 40),
         
         // Architecture overview
@@ -984,11 +1077,11 @@ class PPTGenerationService {
     );
   }
 
-  pw.Widget _buildImplementationSlide(Map<String, dynamic> data, Map<String, String> customizations) {
+  pw.Widget _buildImplementationSlide(Map<String, dynamic> data, Map<String, String> customizations, PPTTemplate template) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _buildSlideHeader('Implementation'),
+        _buildSlideHeader('Implementation', template),
         pw.SizedBox(height: 30),
         
         // Implementation overview
@@ -1068,11 +1161,11 @@ class PPTGenerationService {
     );
   }
 
-  pw.Widget _buildResultsSlide(Map<String, dynamic> data, Map<String, String> customizations) {
+  pw.Widget _buildResultsSlide(Map<String, dynamic> data, Map<String, String> customizations, PPTTemplate template) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _buildSlideHeader('Results & Outcomes'),
+        _buildSlideHeader('Results & Outcomes', template),
         pw.SizedBox(height: 30),
         
         // Results overview
@@ -1186,11 +1279,11 @@ class PPTGenerationService {
     );
   }
 
-  pw.Widget _buildConclusionSlide(Map<String, dynamic> data, Map<String, String> customizations) {
+  pw.Widget _buildConclusionSlide(Map<String, dynamic> data, Map<String, String> customizations, PPTTemplate template) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _buildSlideHeader('Conclusion'),
+        _buildSlideHeader('Conclusion', template),
         pw.SizedBox(height: 30),
         
         // Main conclusion statement
@@ -1355,11 +1448,11 @@ class PPTGenerationService {
     );
   }
 
-  pw.Widget _buildReferencesSlide(Map<String, dynamic> data, Map<String, String> customizations) {
+  pw.Widget _buildReferencesSlide(Map<String, dynamic> data, Map<String, String> customizations, PPTTemplate template) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _buildSlideHeader('References'),
+        _buildSlideHeader('References', template),
         pw.SizedBox(height: 30),
         
         // References overview
@@ -1494,16 +1587,19 @@ class PPTGenerationService {
     );
   }
 
-  pw.Widget _buildThankYouSlide(Map<String, dynamic> data, Map<String, String> customizations) {
+  pw.Widget _buildThankYouSlide(Map<String, dynamic> data, Map<String, String> customizations, PPTTemplate template) {
+    final primary = _getPrimaryColor(template);
+    final secondary = _getSecondaryColor(template);
+    final accent = _getAccentColor(template);
     return pw.Container(
       width: double.infinity,
       height: double.infinity,
       decoration: pw.BoxDecoration(
         gradient: pw.RadialGradient(
           colors: [
-            PdfColors.indigo100,
-            PdfColors.purple100,
-            PdfColors.pink100,
+            primary.shade(0.1),
+            secondary.shade(0.1),
+            accent.shade(0.1),
           ],
           center: pw.Alignment.center,
           radius: 1.5,
@@ -1549,9 +1645,9 @@ class PPTGenerationService {
                   decoration: pw.BoxDecoration(
                     gradient: pw.LinearGradient(
                       colors: [
-                        PdfColors.indigo600,
-                        PdfColors.purple600,
-                        PdfColors.pink600,
+                        primary,
+                        secondary,
+                        accent,
                       ],
                       begin: pw.Alignment.topLeft,
                       end: pw.Alignment.bottomRight,
@@ -1657,11 +1753,11 @@ class PPTGenerationService {
     );
   }
 
-  pw.Widget _buildGenericSlide(SlideTemplate slideTemplate, Map<String, dynamic> data, Map<String, String> customizations) {
+  pw.Widget _buildGenericSlide(SlideTemplate slideTemplate, Map<String, dynamic> data, Map<String, String> customizations, PPTTemplate template) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        _buildSlideHeader(slideTemplate.title),
+        _buildSlideHeader(slideTemplate.title, template),
         pw.SizedBox(height: 30),
         pw.Text(
           customizations[slideTemplate.id] ?? 'Content for ${slideTemplate.title}',
@@ -1671,13 +1767,14 @@ class PPTGenerationService {
     );
   }
 
-  pw.Widget _buildSlideHeader(String title) {
+  pw.Widget _buildSlideHeader(String title, PPTTemplate template) {
+    final gradientColors = _getGradientColors(template);
     return pw.Container(
       width: double.infinity,
       padding: const pw.EdgeInsets.symmetric(vertical: 20),
       decoration: pw.BoxDecoration(
         gradient: pw.LinearGradient(
-          colors: [PdfColors.blue700, PdfColors.blue800, PdfColors.indigo800],
+          colors: gradientColors,
           begin: pw.Alignment.centerLeft,
           end: pw.Alignment.centerRight,
         ),
@@ -2573,6 +2670,32 @@ class PPTGenerationService {
     }
   }
 
+  Future<List<GeneratedPPT>> getProjectGeneratedPPTs(String projectSpaceId) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return [];
+
+    try {
+      final snapshot = await _db.ref('GeneratedPPTs/$uid').get();
+      final List<GeneratedPPT> presentations = [];
+
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+        data.forEach((key, value) {
+          final ppt = GeneratedPPT.fromMap(Map<String, dynamic>.from(value as Map));
+          // Only include PPTs for the specified project space
+          if (ppt.projectSpaceId == projectSpaceId) {
+            presentations.add(ppt);
+          }
+        });
+      }
+
+      return presentations..sort((a, b) => b.generatedAt.compareTo(a.generatedAt));
+    } catch (e) {
+      debugPrint('Error loading project generated PPTs: $e');
+      return [];
+    }
+  }
+
   Future<void> sharePPT(GeneratedPPT ppt) async {
     try {
       final file = File(ppt.filePath);
@@ -2631,7 +2754,12 @@ class PPTGenerationService {
         _createSlideTemplate('references', SlideType.references, 9),
         _createSlideTemplate('thankyou', SlideType.thankyou, 10),
       ],
-      theme: PPTTheme(name: 'Academic Blue'),
+      theme: PPTTheme(
+        name: 'Academic Blue',
+        primaryColor: '#1e3a8a',
+        secondaryColor: '#3b82f6',
+        accentColor: '#6366f1',
+      ),
       createdAt: DateTime.now(),
     );
   }
@@ -2655,10 +2783,10 @@ class PPTGenerationService {
         _createSlideTemplate('thankyou', SlideType.thankyou, 8),
       ],
       theme: PPTTheme(
-        name: 'Professional',
-        primaryColor: '#1f2937',
-        secondaryColor: '#374151',
-        accentColor: '#3b82f6',
+        name: 'Professional Dark',
+        primaryColor: '#0f172a',
+        secondaryColor: '#475569',
+        accentColor: '#0ea5e9',
       ),
       createdAt: DateTime.now(),
     );
@@ -2686,10 +2814,10 @@ class PPTGenerationService {
         _createSlideTemplate('thankyou', SlideType.thankyou, 11),
       ],
       theme: PPTTheme(
-        name: 'Technical',
-        primaryColor: '#059669',
-        secondaryColor: '#10b981',
-        accentColor: '#34d399',
+        name: 'Technical Green',
+        primaryColor: '#065f46',
+        secondaryColor: '#047857',
+        accentColor: '#10b981',
       ),
       createdAt: DateTime.now(),
     );
@@ -2711,9 +2839,9 @@ class PPTGenerationService {
         _createSlideTemplate('thankyou', SlideType.thankyou, 5),
       ],
       theme: PPTTheme(
-        name: 'Minimal',
-        primaryColor: '#6b7280',
-        secondaryColor: '#9ca3af',
+        name: 'Minimal Warm',
+        primaryColor: '#78350f',
+        secondaryColor: '#a16207',
         accentColor: '#f59e0b',
       ),
       createdAt: DateTime.now(),

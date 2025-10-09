@@ -13,13 +13,13 @@ import 'package:minix/widgets/read_only_banner.dart';
 class ProjectRoadmapPage extends StatefulWidget {
   final String projectSpaceId;
   final Problem problem;
-  final dynamic projectName; // Can be String or Map - we'll handle safely
+  final String projectName;
 
   const ProjectRoadmapPage({
     super.key,
     required this.projectSpaceId,
     required this.problem,
-    required this.projectName, // Dynamic type to handle String or Map
+    required this.projectName,
   });
 
   @override
@@ -67,6 +67,42 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
     _deadlineController.dispose();
     _skillController.dispose();
     super.dispose();
+  }
+  
+  /// Helper method to safely get the first team member name
+  String? _getFirstTeamMemberName() {
+    if (_projectSpaceData?['teamMembers'] == null) return null;
+    
+    final teamMembersData = _projectSpaceData!['teamMembers'] as List;
+    if (teamMembersData.isEmpty) return null;
+    
+    final firstMember = teamMembersData.first;
+    if (firstMember is Map<String, dynamic>) {
+      return firstMember['name'] as String?;
+    } else if (firstMember is String) {
+      return firstMember; // Backward compatibility
+    }
+    return null;
+  }
+  
+  /// Helper method to safely get team member names for display
+  String _getTeamMemberNames() {
+    if (_projectSpaceData?['teamMembers'] == null) return 'No members';
+    
+    final teamMembersData = _projectSpaceData!['teamMembers'] as List;
+    if (teamMembersData.isEmpty) return 'No members';
+    
+    final names = teamMembersData.map((member) {
+      if (member is Map<String, dynamic>) {
+        return (member['name'] as String?) ?? 'Unknown';
+      } else if (member is String) {
+        return member; // Backward compatibility
+      } else {
+        return 'Unknown';
+      }
+    }).toList();
+    
+    return names.join(', ');
   }
 
   Future<void> _loadProjectSpaceData() async {
@@ -162,9 +198,20 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
 
     try {
       final startDate = DateTime.now();
-      final teamMembers = _projectSpaceData?['teamMembers'] != null 
-          ? List<String>.from(_projectSpaceData!['teamMembers'] as List)
-          : <String>['Team'];
+      // Safely extract team member names from the team members objects
+      List<String> teamMembers = ['Team']; // Default fallback
+      if (_projectSpaceData?['teamMembers'] != null) {
+        final teamMembersData = _projectSpaceData!['teamMembers'] as List;
+        teamMembers = teamMembersData.map((member) {
+          if (member is Map<String, dynamic>) {
+            return (member['name'] as String?) ?? 'Team Member';
+          } else if (member is String) {
+            return member; // Backward compatibility for old format
+          } else {
+            return 'Team Member';
+          }
+        }).toList();
+      }
       
       // Safely extract difficulty and targetPlatform as strings
       final difficultyValue = _projectSpaceData?['difficulty'];
@@ -175,33 +222,20 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
       
       // Use skills from the selected problem instead of manual input
       final problemSkills = widget.problem.skills;
-      
-      // Safely extract projectName as string to prevent Map type issues
-      String safeProjectName;
-      if (widget.projectName is String) {
-        safeProjectName = widget.projectName as String;
-      } else {
-        debugPrint('⚠️ projectName is not a String, type: ${widget.projectName.runtimeType}');
-        safeProjectName = 'Project';
-      }
-      
-      // Use problem description (should always be a String from Problem model)
-      String safeDescription = widget.problem.description;
-      
-      // Debug ALL parameters to find any remaining Map issues
-      debugPrint('🔍 === DEBUGGING ROADMAP PARAMETERS ===');
-      debugPrint('projectName type: ${safeProjectName.runtimeType} = "$safeProjectName"');
-      debugPrint('problem.description type: ${safeDescription.runtimeType}');
-      debugPrint('teamMembers type: ${teamMembers.runtimeType}');
-      debugPrint('problemSkills type: ${problemSkills.runtimeType}');
-      debugPrint('difficulty type: ${difficulty.runtimeType} = "$difficulty"');
-      debugPrint('targetPlatform type: ${targetPlatform.runtimeType} = "$targetPlatform"');
-      debugPrint('=== END DEBUG ===');
 
+      // Debug logging before AI call
+      debugPrint('🐛 DEBUG - Pre-AI call data:');
+      debugPrint('  projectTitle: ${widget.projectName} (${widget.projectName.runtimeType})');
+      debugPrint('  difficulty: $difficulty (${difficulty.runtimeType})');
+      debugPrint('  targetPlatform: $targetPlatform (${targetPlatform.runtimeType})');
+      debugPrint('  teamMembers: $teamMembers (${teamMembers.runtimeType})');
+      debugPrint('  problemSkills: $problemSkills (${problemSkills.runtimeType})');
+      debugPrint('  _selectedSolution: $_selectedSolution');
+      
       // Generate enhanced roadmap using AI with full context
       final tasks = await _gemini.generateRoadmap(
-        projectTitle: safeProjectName,
-        projectDescription: safeDescription,
+        projectTitle: widget.projectName,
+        projectDescription: widget.problem.description,
         teamMembers: teamMembers,
         teamSkills: problemSkills,
         startDate: startDate,
@@ -209,7 +243,7 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
         difficulty: difficulty,
         targetPlatform: targetPlatform,
         problem: null, // Temporarily null
-        solution: null, // Temporarily null
+        solution: _selectedSolution, // Pass the solution data
       );
 
       // Save roadmap to Firebase
@@ -284,7 +318,7 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
         roadmapId: roadmapId.toString(),
         taskId: task.id,
         isCompleted: !task.isCompleted,
-        completedBy: (_projectSpaceData?['teamMembers'] as List?)?.first?.toString() ?? 'User',
+        completedBy: _getFirstTeamMemberName() ?? 'User',
       );
 
       // Update local state
@@ -294,7 +328,7 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
           _generatedTasks![index] = task.copyWith(
             isCompleted: !task.isCompleted,
             completedAt: !task.isCompleted ? DateTime.now() : null,
-            completedBy: !task.isCompleted ? ((_projectSpaceData?['teamMembers'] as List?)?.first?.toString() ?? 'User') : null,
+            completedBy: !task.isCompleted ? (_getFirstTeamMemberName() ?? 'User') : null,
           );
         }
       });
@@ -357,7 +391,7 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Project: ${widget.projectName is String ? widget.projectName as String : 'Untitled Project'}',
+                  'Project: ${widget.projectName}',
                   style: GoogleFonts.poppins(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -504,7 +538,7 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
-                            'Members: ${(_projectSpaceData!['teamMembers'] as List).join(', ')}',
+                            'Members: ${_getTeamMemberNames()}',
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.w500,
                               color: const Color(0xff374151),
@@ -770,7 +804,7 @@ class _ProjectRoadmapPageState extends State<ProjectRoadmapPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'You have completed all tasks for ${widget.projectName is String ? widget.projectName as String : 'your project'}!',
+                    'You have completed all tasks for ${widget.projectName}!',
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       color: const Color(0xff059669),

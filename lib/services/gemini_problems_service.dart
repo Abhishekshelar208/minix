@@ -545,6 +545,16 @@ Return ONLY the JSON object. Do not wrap in code fences.
     Problem? problem,
     Map<String, dynamic>? solution,
   }) {
+    // Debug logging - check parameter types
+    debugPrint('🐛 _buildRoadmapPrompt DEBUG:');
+    debugPrint('  projectTitle: $projectTitle (${projectTitle.runtimeType})');
+    debugPrint('  difficulty: $difficulty (${difficulty.runtimeType})');
+    debugPrint('  targetPlatform: $targetPlatform (${targetPlatform.runtimeType})');
+    debugPrint('  solution type: ${solution.runtimeType}');
+    if (solution != null) {
+      debugPrint('  solution keys: ${solution.keys.toList()}');
+      debugPrint('  solution["title"] type: ${solution['title']?.runtimeType}');
+    }
     final teamSkillsStr = teamSkills.join(', ');
     final teamMembersStr = teamMembers.join(', ');
     
