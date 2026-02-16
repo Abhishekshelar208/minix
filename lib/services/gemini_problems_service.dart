@@ -24,7 +24,7 @@ class GeminiProblemsService {
 
     debugPrint('🚀 Calling Gemini API for domain: $domain, year: $year, skills: $skills');
 
-    final prompt = _buildPrompt(
+    final prompt = buildPrompt(
       domain: domain,
       year: year,
       platforms: platforms,
@@ -114,6 +114,25 @@ class GeminiProblemsService {
     debugPrint('🎉 Successfully created ${problems.length} AI problems');
     return problems;
   }
+
+  String buildChatGPTPrompt({
+    required String domain,
+    required int year,
+    required List<String> skills,
+  }) {
+    final sk = skills.isEmpty ? 'general programming skills' : skills.join(', ');
+    
+    return '''
+I am a $year year engineering student looking for a project in the "$domain" domain.
+My technical skills are: $sk.
+
+Please suggest 8 unique, real-world, and practical project problem statements suitable for my level.
+For each idea, provide a catchy title and a one-line description.
+
+IMPORTANT: At the end of your response, please ask me this exact question:
+"Let me know which problem you selected so I will provide a detailed explanation on that"
+'''.trim();
+  }
   
   // Generate detailed problem information with real-life examples
   Future<Problem> generateDetailedProblem(Problem baseProblem) async {
@@ -174,7 +193,7 @@ class GeminiProblemsService {
     }
   }
 
-  String _buildPrompt({
+  String buildPrompt({
     required String domain,
     required int year,
     required List<String> platforms,

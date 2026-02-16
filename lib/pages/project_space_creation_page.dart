@@ -32,7 +32,7 @@ class _ProjectSpaceCreationPageState extends State<ProjectSpaceCreationPage> {
   bool _isCreatingSpace = false;
 
   // Platform selection
-  final List<String> _platforms = ['App', 'Web', 'Website'];
+  final List<String> _platforms = ['App', 'WebApp', 'Website', 'MVP'];
   String _selectedPlatform = 'App';
 
   @override
@@ -425,8 +425,9 @@ class _ProjectSpaceCreationPageState extends State<ProjectSpaceCreationPage> {
                                   children: [
                                     Icon(
                                       platform == 'App' ? Icons.phone_android :
-                                      platform == 'Web' ? Icons.web :
-                                      Icons.language,
+                                      platform == 'WebApp' ? Icons.web :
+                                      platform == 'Website' ? Icons.language :
+                                      Icons.rocket_launch, // MVP icon
                                       color: isSelected 
                                           ? const Color(0xff7c3aed) 
                                           : const Color(0xff6b7280),

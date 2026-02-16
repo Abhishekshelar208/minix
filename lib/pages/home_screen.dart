@@ -821,17 +821,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // Refresh data while staying on current tab (for Projects tab refresh button)
   Future<void> _refreshProjectsData() async {
     debugPrint('📁 Refreshing projects data without navigation');
+    final currentTab = _currentIndex; // Save current tab
     await _loadHomeData();
-    // Ensure we stay on the current tab after refresh
-    if (_currentIndex != 1) {
+    // Ensure we stay on the saved tab after refresh
+    if (_currentIndex != currentTab) {
       setState(() {
-        _currentIndex = 1;
+        _currentIndex = currentTab;
       });
-      _pageController.animateToPage(
-        1,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-      );
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(currentTab);
+      }
+    }
+  }
+  
+  // Refresh data for specific tab (preserves current tab)
+  Future<void> _refreshCurrentTab() async {
+    debugPrint('🔄 Refreshing current tab: $_currentIndex');
+    final currentTab = _currentIndex; // Save current tab before refresh
+    await _loadHomeData();
+    // Restore the tab after data load
+    if (_currentIndex != currentTab && mounted) {
+      setState(() {
+        _currentIndex = currentTab;
+      });
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(currentTab);
+      }
     }
   }
   
@@ -853,7 +868,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final userName = user?.displayName?.split(' ')[0] ?? 'Student';
     
     return RefreshIndicator(
-      onRefresh: _loadHomeData,
+      onRefresh: _refreshCurrentTab,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -898,7 +913,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   
   Widget _buildProjectsPage() {
     return RefreshIndicator(
-      onRefresh: _loadHomeData,
+      onRefresh: _refreshCurrentTab,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1169,7 +1184,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     User? user = _auth.currentUser;
     
     return RefreshIndicator(
-      onRefresh: _loadHomeData,
+      onRefresh: _refreshCurrentTab,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1654,7 +1669,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _loadHomeData() async {
-    setState(() => _isLoadingData = true);
+    // Don't set _isLoadingData to true if we already have data (for refresh scenarios)
+    // Only show full loading on initial load
+    if (_projectSpaces.isEmpty && _currentRoadmap == null) {
+      setState(() => _isLoadingData = true);
+    }
     
     try {
       final uid = _auth.currentUser?.uid;

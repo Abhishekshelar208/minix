@@ -8,6 +8,6 @@
 class Secrets {
   // Prefer --dart-define; do NOT hardcode secrets in code.
   // Pass at runtime: flutter run --dart-define=GEMINI_API_KEY=...
-  static const String geminiApiKey = String.fromEnvironment('GEMINI_API_KEY', defaultValue: 'AIzaSyCoFgpZdBBZtjPnfn-sUzs2k8yqt3Ey6wQ');
+  static const String geminiApiKey = String.fromEnvironment('GEMINI_API_KEY', defaultValue: 'AIzaSyDu51x3vnC5oohNEieWh4ujK3AnObhZNTU');
   static bool get hasGeminiKey => geminiApiKey.isNotEmpty;
 }

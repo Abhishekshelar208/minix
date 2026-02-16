@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:minix/models/problem.dart';
 import 'package:minix/pages/problem_details_page.dart';
@@ -186,6 +187,38 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
       }
     }
   }
+
+  void _copyPrompt() {
+    if (!_isFormValid()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all required fields first')),
+      );
+      return;
+    }
+
+    final year = int.tryParse(_yearController.text.trim()) ?? 2;
+    // Use custom domain if "Custom" is selected
+    final domainToSearch = _selectedDomain == 'Custom' 
+        ? _customDomainController.text.trim() 
+        : _selectedDomain!;
+
+    final prompt = _gemini.buildChatGPTPrompt(
+      domain: domainToSearch,
+      year: year,
+      skills: _selectedTechs.toList(),
+    );
+    
+    Clipboard.setData(ClipboardData(text: prompt));
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✅ Prompt copied! Paste it into ChatGPT to get topics.'),
+        backgroundColor: Colors.blue,
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
+  
   
   Future<void> _searchTopics() async {
     if (!_canEdit) {
@@ -647,6 +680,28 @@ class _TopicSelectionPageState extends State<TopicSelectionPage> {
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: (_isFormValid() && _canEdit) ? const Color(0xff2563eb) : Colors.grey,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Copy Prompt Button (Backup)
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: OutlinedButton.icon(
+              onPressed: (!_canEdit || _isSearching) ? null : _copyPrompt,
+              icon: const Icon(Icons.copy_all),
+              label: Text(
+                'Copy Prompt (Use in ChatGPT)',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xff6b7280)),
+                foregroundColor: const Color(0xff6b7280),
               ),
             ),
           ),
